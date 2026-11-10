@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "=== RHIZO Codespace toolchain ==="
+printf "CMake: "; cmake --version | head -n 1
+printf "Ninja: "; ninja --version
+printf "Clang: "; clang --version | head -n 1
+printf "Java: "; java -version 2>&1 | head -n 1
+printf "GLSL compiler: "; glslc --version | head -n 1
+printf "SPIR-V validator: "; spirv-val --version | head -n 1
+printf "Vulkan tools: "; vulkaninfo --summary 2>&1 | head -n 1 || true
+
+if [[ -x "${ANDROID_HOME:-/opt/android-sdk}/ndk/28.2.13676358/ndk-build" ]]; then
+  echo "Android NDK: 28.2.13676358"
+else
+  echo "Android NDK: not installed yet"
+fi
