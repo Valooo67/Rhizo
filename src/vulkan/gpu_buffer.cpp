@@ -54,7 +54,7 @@ bool GpuBuffer::create(VkPhysicalDevice physical, VkDevice device, VkDeviceSize 
   uint32_t memory_index = 0;
   VkMemoryPropertyFlags selected = 0;
   if (!find_memory_type(requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-                        VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                        VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                         memory_index, selected)) {
     error = "No host-visible Vulkan memory type is available for buffer uploads";
     destroy();
