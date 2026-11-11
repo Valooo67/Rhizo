@@ -16,3 +16,17 @@ Configure with the Android NDK CMake toolchain:
 
 The Linux Codespace is a cross-compilation host. Vulkan runtime validation must happen on the Android device.
 Public C ABI: include/rhizo/rhizo.h. No C++ exceptions or STL objects cross the ABI boundary.
+
+
+## Vulkan GPU buffers
+
+RHIZO exposes host-visible Vulkan buffers through its versioned C ABI. Supported usages are vertex, index, uniform, storage, and indirect. A buffer can be initialized or updated with `rhizo_buffer_write`; writes validate their byte range and flush non-coherent mapped memory before returning.
+
+Minimal lifecycle:
+
+1. Create a `RhizoContext` with `rhizo_create`.
+2. Fill `RhizoBufferCreateInfo` with `struct_size`, a non-zero usage mask, and byte size.
+3. Call `rhizo_buffer_create`, then upload bytes with `rhizo_buffer_write`.
+4. Destroy buffers with `rhizo_buffer_destroy` before destroying the context. Destroying the context also invalidates and releases any buffers still registered to it.
+
+The current implementation allocates host-visible memory directly. This is a functional upload path for initial GPU integration; a device-local allocator and staging-transfer path are the next performance layer. Buffer handles are opaque and are not Vulkan handles.
