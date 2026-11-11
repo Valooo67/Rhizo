@@ -15,6 +15,8 @@ class VulkanContext final {
   VulkanContext& operator=(const VulkanContext&) = delete;
   VulkanStatus initialize(const char* application_name, uint32_t requested_api);
   const VulkanDeviceInfo& device_info() const noexcept { return device_info_; }
+  VkPhysicalDevice physical_device() const noexcept { return physical_device_; }
+  VkDevice device() const noexcept { return device_; }
   const std::string& last_error() const noexcept { return last_error_; }
  private:
   void reset() noexcept;
