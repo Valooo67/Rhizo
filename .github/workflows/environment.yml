@@ -1,0 +1,34 @@
+name: RHIZO environment validation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".devcontainer/**"
+      - ".github/workflows/**"
+  pull_request:
+    paths:
+      - ".devcontainer/**"
+      - ".github/workflows/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate devcontainer JSON
+        run: python3 -m json.tool .devcontainer/devcontainer.json >/dev/null
+
+      - name: Validate shell scripts
+        run: |
+          bash -n .devcontainer/setup-android-sdk.sh
+          bash -n .devcontainer/verify-toolchain.sh
+
+      - name: Build RHIZO devcontainer image
+        run: docker build --pull -f .devcontainer/Dockerfile .devcontainer
