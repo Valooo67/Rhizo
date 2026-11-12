@@ -2,6 +2,7 @@
 
 #include "vulkan/gpu_buffer.hpp"
 #include "vulkan/vulkan_context.hpp"
+#include "vulkan/viewport.hpp"
 #include "rhizo/scene.hpp"
 #include "rhizo/animation.hpp"
 #include "rhizo/model_importer.hpp"
@@ -9,6 +10,7 @@
 #include "rhizo/editor_geometry.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 #include <memory>
 #include <new>
@@ -19,6 +21,7 @@ struct RhizoBuffer;
 
 struct RhizoContext {
   rhizo::VulkanContext vulkan;
+  rhizo::Viewport viewport;
   std::string last_error;
   std::vector<RhizoBuffer*> buffers;
   rhizo::Scene scene;
@@ -94,6 +97,22 @@ RhizoResult rhizo_create(const RhizoCreateInfo* info, RhizoContext** out_context
   *out_context = context.release();
   return RHIZO_SUCCESS;
 }
+
+RhizoResult rhizo_viewport_attach(RhizoContext* context, void* native_window) {
+  if (!context || !native_window) return RHIZO_ERROR_INVALID_ARGUMENT;
+  std::string error;
+  if (!context->viewport.attach(context->vulkan, static_cast<ANativeWindow*>(native_window), error)) { context->last_error = std::move(error); return RHIZO_ERROR_VULKAN; }
+  return RHIZO_SUCCESS;
+}
+
+RhizoResult rhizo_viewport_render(RhizoContext* context, float r, float g, float b, float a) {
+  if (!context) return RHIZO_ERROR_INVALID_ARGUMENT;
+  std::string error;
+  if (!context->viewport.render(r,g,b,a,error)) { context->last_error = std::move(error); return RHIZO_ERROR_VULKAN; }
+  return RHIZO_SUCCESS;
+}
+
+void rhizo_viewport_detach(RhizoContext* context) { if (context) context->viewport.detach(); }
 
 RhizoResult rhizo_get_device_info(const RhizoContext* context,
                                   RhizoDeviceInfo* out_info) {

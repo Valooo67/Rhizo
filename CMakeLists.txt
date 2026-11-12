@@ -27,11 +27,11 @@ FetchContent_Declare(assimp
   GIT_SHALLOW TRUE)
 FetchContent_MakeAvailable(assimp)
 find_library(ANDROID_VULKAN_LIBRARY vulkan REQUIRED)
-find_library(ANDROID_LOG_LIBRARY log)
+find_library(ANDROID_LOG_LIBRARY log)\nfind_library(ANDROID_LIBRARY android REQUIRED)
 find_library(ANDROID_Z_LIBRARY z REQUIRED)
 add_library(rhizo SHARED
   src/core/rhizo.cpp
-  src/vulkan/vulkan_context.cpp
+  src/vulkan/vulkan_context.cpp\n  src/vulkan/viewport.cpp
   src/vulkan/gpu_buffer.cpp
   src/vulkan/shadow_map.cpp
   src/scene/scene.cpp
@@ -39,7 +39,7 @@ add_library(rhizo SHARED
   src/scene/model_importer.cpp
   src/scene/editor_geometry.cpp)
 target_include_directories(rhizo PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
-target_link_libraries(rhizo PRIVATE ${ANDROID_VULKAN_LIBRARY} ${ANDROID_Z_LIBRARY} assimp)
+target_link_libraries(rhizo PRIVATE ${ANDROID_VULKAN_LIBRARY} ${ANDROID_Z_LIBRARY} ${ANDROID_LIBRARY} assimp)
 if(ANDROID_LOG_LIBRARY)
   target_link_libraries(rhizo PRIVATE ${ANDROID_LOG_LIBRARY})
 endif()

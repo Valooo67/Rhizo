@@ -69,7 +69,7 @@ typedef struct RhizoMaterialInfo {
 } RhizoMaterialInfo;
 RHIZO_API uint32_t rhizo_get_abi_version(void);
 RHIZO_API RhizoResult rhizo_create(const RhizoCreateInfo*,RhizoContext**);
-RHIZO_API RhizoResult rhizo_get_device_info(const RhizoContext*,RhizoDeviceInfo*);
+RHIZO_API RhizoResult rhizo_get_device_info(const RhizoContext*,RhizoDeviceInfo*);\n/* native_window is an Android ANativeWindow* passed as an opaque pointer. */\nRHIZO_API RhizoResult rhizo_viewport_attach(RhizoContext*,void* native_window);\nRHIZO_API RhizoResult rhizo_viewport_render(RhizoContext*,float red,float green,float blue,float alpha);\nRHIZO_API void rhizo_viewport_detach(RhizoContext*);
 RHIZO_API const char* rhizo_get_last_error(const RhizoContext*);
 RHIZO_API RhizoResult rhizo_buffer_create(RhizoContext*,const RhizoBufferCreateInfo*,RhizoBuffer**);
 RHIZO_API RhizoResult rhizo_buffer_write(RhizoBuffer*,uint64_t,const void*,uint64_t);

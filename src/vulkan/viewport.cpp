@@ -1,0 +1,45 @@
+#include "viewport.hpp"
+#include <algorithm>
+namespace rhizo {
+Viewport::~Viewport(){detach();}
+bool Viewport::attach(VulkanContext&c,ANativeWindow*w,std::string&e){
+ if(!w){e="ANativeWindow is null";return false;}detach();context_=&c;window_=w;ANativeWindow_acquire(window_);
+ VkAndroidSurfaceCreateInfoKHR si{VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR};si.window=window_;
+ VkResult r=vkCreateAndroidSurfaceKHR(c.instance(),&si,nullptr,&surface_);if(r!=VK_SUCCESS){e="vkCreateAndroidSurfaceKHR failed: "+std::to_string(r);detach();return false;}
+ VkBool32 present=VK_FALSE;r=vkGetPhysicalDeviceSurfaceSupportKHR(c.physical_device(),c.graphics_queue_family(),surface_,&present);
+ if(r!=VK_SUCCESS||!present){e="Selected Vulkan graphics queue cannot present to Android surface";detach();return false;}
+ if(!create_swapchain(e)){detach();return false;}
+ VkCommandBufferAllocateInfo ai{VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};ai.commandPool=c.command_pool();ai.level=VK_COMMAND_BUFFER_LEVEL_PRIMARY;ai.commandBufferCount=1;
+ r=vkAllocateCommandBuffers(c.device(),&ai,&command_);if(r!=VK_SUCCESS){e="vkAllocateCommandBuffers(viewport) failed";detach();return false;}
+ VkSemaphoreCreateInfo sem{VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};if(vkCreateSemaphore(c.device(),&sem,nullptr,&acquired_)!=VK_SUCCESS||vkCreateSemaphore(c.device(),&sem,nullptr,&finished_)!=VK_SUCCESS){e="Viewport semaphore creation failed";detach();return false;}
+ VkFenceCreateInfo fi{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};fi.flags=VK_FENCE_CREATE_SIGNALED_BIT;if(vkCreateFence(c.device(),&fi,nullptr,&fence_)!=VK_SUCCESS){e="Viewport fence creation failed";detach();return false;}return true;
+}
+bool Viewport::create_swapchain(std::string&e){
+ VkSurfaceCapabilitiesKHR caps{};VkResult r=vkGetPhysicalDeviceSurfaceCapabilitiesKHR(context_->physical_device(),surface_,&caps);if(r!=VK_SUCCESS){e="Surface capability query failed";return false;}
+ uint32_t n=0;vkGetPhysicalDeviceSurfaceFormatsKHR(context_->physical_device(),surface_,&n,nullptr);if(!n){e="Android surface exposes no Vulkan formats";return false;}std::vector<VkSurfaceFormatKHR> fs(n);vkGetPhysicalDeviceSurfaceFormatsKHR(context_->physical_device(),surface_,&n,fs.data());
+ VkSurfaceFormatKHR chosen=fs[0];for(const auto&f:fs)if(f.format==VK_FORMAT_B8G8R8A8_UNORM&&f.colorSpace==VK_COLOR_SPACE_SRGB_NONLINEAR_KHR){chosen=f;break;}format_=chosen.format;
+ if(caps.currentExtent.width!=UINT32_MAX)extent_=caps.currentExtent;else{extent_.width=std::clamp(static_cast<uint32_t>(ANativeWindow_getWidth(window_)),caps.minImageExtent.width,caps.maxImageExtent.width);extent_.height=std::clamp(static_cast<uint32_t>(ANativeWindow_getHeight(window_)),caps.minImageExtent.height,caps.maxImageExtent.height);}
+ uint32_t count=std::max(caps.minImageCount,2u);if(caps.maxImageCount&&count>caps.maxImageCount)count=caps.maxImageCount;
+ VkSwapchainCreateInfoKHR ci{VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR};ci.surface=surface_;ci.minImageCount=count;ci.imageFormat=format_;ci.imageColorSpace=chosen.colorSpace;ci.imageExtent=extent_;ci.imageArrayLayers=1;ci.imageUsage=VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;ci.imageSharingMode=VK_SHARING_MODE_EXCLUSIVE;ci.preTransform=caps.currentTransform;ci.compositeAlpha=(caps.supportedCompositeAlpha&VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR)?VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR:static_cast<VkCompositeAlphaFlagBitsKHR>(1u<<__builtin_ctz(caps.supportedCompositeAlpha));ci.presentMode=VK_PRESENT_MODE_FIFO_KHR;ci.clipped=VK_TRUE;
+ r=vkCreateSwapchainKHR(context_->device(),&ci,nullptr,&swapchain_);if(r!=VK_SUCCESS){e="vkCreateSwapchainKHR failed: "+std::to_string(r);return false;}
+ vkGetSwapchainImagesKHR(context_->device(),swapchain_,&n,nullptr);images_.resize(n);vkGetSwapchainImagesKHR(context_->device(),swapchain_,&n,images_.data());views_.resize(n);framebuffers_.resize(n);
+ for(uint32_t i=0;i<n;i++){VkImageViewCreateInfo vi{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};vi.image=images_[i];vi.viewType=VK_IMAGE_VIEW_TYPE_2D;vi.format=format_;vi.subresourceRange={VK_IMAGE_ASPECT_COLOR_BIT,0,1,0,1};r=vkCreateImageView(context_->device(),&vi,nullptr,&views_[i]);if(r!=VK_SUCCESS){e="Swapchain image view creation failed";return false;}}
+ VkAttachmentDescription ad{};ad.format=format_;ad.samples=VK_SAMPLE_COUNT_1_BIT;ad.loadOp=VK_ATTACHMENT_LOAD_OP_CLEAR;ad.storeOp=VK_ATTACHMENT_STORE_OP_STORE;ad.stencilLoadOp=VK_ATTACHMENT_LOAD_OP_DONT_CARE;ad.stencilStoreOp=VK_ATTACHMENT_STORE_OP_DONT_CARE;ad.initialLayout=VK_IMAGE_LAYOUT_UNDEFINED;ad.finalLayout=VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+ VkAttachmentReference ar{0,VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};VkSubpassDescription sub{};sub.pipelineBindPoint=VK_PIPELINE_BIND_POINT_GRAPHICS;sub.colorAttachmentCount=1;sub.pColorAttachments=&ar;
+ VkSubpassDependency dep{};dep.srcSubpass=VK_SUBPASS_EXTERNAL;dep.dstSubpass=0;dep.srcStageMask=VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;dep.dstStageMask=VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;dep.dstAccessMask=VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+ VkRenderPassCreateInfo rp{VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO};rp.attachmentCount=1;rp.pAttachments=&ad;rp.subpassCount=1;rp.pSubpasses=&sub;rp.dependencyCount=1;rp.pDependencies=&dep;r=vkCreateRenderPass(context_->device(),&rp,nullptr,&render_pass_);if(r!=VK_SUCCESS){e="Viewport render pass creation failed";return false;}
+ for(uint32_t i=0;i<n;i++){VkFramebufferCreateInfo fb{VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};fb.renderPass=render_pass_;fb.attachmentCount=1;fb.pAttachments=&views_[i];fb.width=extent_.width;fb.height=extent_.height;fb.layers=1;r=vkCreateFramebuffer(context_->device(),&fb,nullptr,&framebuffers_[i]);if(r!=VK_SUCCESS){e="Viewport framebuffer creation failed";return false;}}
+ return true;
+}
+bool Viewport::render(float red,float green,float blue,float alpha,std::string&e){
+ if(!context_||!swapchain_||!command_){e="Viewport is not attached";return false;}VkDevice d=context_->device();VkResult r=vkWaitForFences(d,1,&fence_,VK_TRUE,UINT64_MAX);if(r!=VK_SUCCESS){e="Viewport fence wait failed";return false;}
+ uint32_t index=0;r=vkAcquireNextImageKHR(d,swapchain_,UINT64_MAX,acquired_,VK_NULL_HANDLE,&index);if(r==VK_ERROR_OUT_OF_DATE_KHR){e="Viewport swapchain out of date; reattach after surface resize";return false;}if(r!=VK_SUCCESS&&r!=VK_SUBOPTIMAL_KHR){e="vkAcquireNextImageKHR failed: "+std::to_string(r);return false;}
+ vkResetFences(d,1,&fence_);vkResetCommandBuffer(command_,0);VkCommandBufferBeginInfo bi{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};r=vkBeginCommandBuffer(command_,&bi);if(r!=VK_SUCCESS){e="Viewport command begin failed";return false;}
+ VkClearValue clear{};clear.color={{std::clamp(red,0.0f,1.0f),std::clamp(green,0.0f,1.0f),std::clamp(blue,0.0f,1.0f),std::clamp(alpha,0.0f,1.0f)}};
+ VkRenderPassBeginInfo ri{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};ri.renderPass=render_pass_;ri.framebuffer=framebuffers_[index];ri.renderArea={{0,0},extent_};ri.clearValueCount=1;ri.pClearValues=&clear;vkCmdBeginRenderPass(command_,&ri,VK_SUBPASS_CONTENTS_INLINE);vkCmdEndRenderPass(command_);r=vkEndCommandBuffer(command_);if(r!=VK_SUCCESS){e="Viewport command end failed";return false;}
+ VkPipelineStageFlags wait=VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;VkSubmitInfo si{VK_STRUCTURE_TYPE_SUBMIT_INFO};si.waitSemaphoreCount=1;si.pWaitSemaphores=&acquired_;si.pWaitDstStageMask=&wait;si.commandBufferCount=1;si.pCommandBuffers=&command_;si.signalSemaphoreCount=1;si.pSignalSemaphores=&finished_;r=vkQueueSubmit(context_->graphics_queue(),1,&si,fence_);if(r!=VK_SUCCESS){e="Viewport queue submit failed: "+std::to_string(r);return false;}
+ VkPresentInfoKHR pi{VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};pi.waitSemaphoreCount=1;pi.pWaitSemaphores=&finished_;pi.swapchainCount=1;pi.pSwapchains=&swapchain_;pi.pImageIndices=&index;r=vkQueuePresentKHR(context_->graphics_queue(),&pi);if(r!=VK_SUCCESS&&r!=VK_SUBOPTIMAL_KHR){e="vkQueuePresentKHR failed: "+std::to_string(r);return false;}return true;
+}
+void Viewport::destroy_swapchain()noexcept{if(!context_)return;VkDevice d=context_->device();for(auto f:framebuffers_)if(f)vkDestroyFramebuffer(d,f,nullptr);framebuffers_.clear();if(render_pass_)vkDestroyRenderPass(d,render_pass_,nullptr);render_pass_=VK_NULL_HANDLE;for(auto v:views_)if(v)vkDestroyImageView(d,v,nullptr);views_.clear();images_.clear();if(swapchain_)vkDestroySwapchainKHR(d,swapchain_,nullptr);swapchain_=VK_NULL_HANDLE;}
+void Viewport::detach()noexcept{if(context_){VkDevice d=context_->device();if(d)vkDeviceWaitIdle(d);destroy_swapchain();if(command_)vkFreeCommandBuffers(d,context_->command_pool(),1,&command_);if(acquired_)vkDestroySemaphore(d,acquired_,nullptr);if(finished_)vkDestroySemaphore(d,finished_,nullptr);if(fence_)vkDestroyFence(d,fence_,nullptr);if(surface_)vkDestroySurfaceKHR(context_->instance(),surface_,nullptr);}command_=VK_NULL_HANDLE;acquired_=finished_=VK_NULL_HANDLE;fence_=VK_NULL_HANDLE;surface_=VK_NULL_HANDLE;if(window_){ANativeWindow_release(window_);window_=nullptr;}context_=nullptr;extent_={};}
+}
