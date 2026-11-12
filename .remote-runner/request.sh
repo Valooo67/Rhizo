@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-echo "===== RHIZO REMOTE BUILD ====="
+echo "===== RHIZO REMOTE BUILD + COMPLETE C ABI VALIDATION ====="
 echo "UTC: $(date -u +%FT%TZ)"
 echo "Host: $(uname -a)"
 echo
