@@ -73,6 +73,7 @@ RHIZO_API RhizoResult rhizo_get_device_info(const RhizoContext*,RhizoDeviceInfo*
 /* native_window is an Android ANativeWindow* passed as an opaque pointer. */
 RHIZO_API RhizoResult rhizo_viewport_attach(RhizoContext*,void* native_window);
 RHIZO_API RhizoResult rhizo_viewport_render(RhizoContext*,float red,float green,float blue,float alpha);
+RHIZO_API RhizoResult rhizo_viewport_render_scene(RhizoContext*,const float view_projection[16]);
 RHIZO_API void rhizo_viewport_detach(RhizoContext*);
 RHIZO_API const char* rhizo_get_last_error(const RhizoContext*);
 RHIZO_API RhizoResult rhizo_buffer_create(RhizoContext*,const RhizoBufferCreateInfo*,RhizoBuffer**);

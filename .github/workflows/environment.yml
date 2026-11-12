@@ -22,6 +22,9 @@ jobs:
           bash -n .devcontainer/setup-android-sdk.sh
           bash -n .devcontainer/verify-toolchain.sh
 
+      - name: Install Vulkan shader compiler
+        run: sudo apt-get update && sudo apt-get install -y glslc
+
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
