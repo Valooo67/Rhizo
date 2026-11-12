@@ -1,0 +1,31 @@
+{
+  "name": "RHIZO Android ARM64 Native Dev",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": "."
+  },
+  "remoteUser": "vscode",
+  "updateRemoteUserUID": true,
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-vscode.cpptools",
+        "ms-vscode.cmake-tools",
+        "twxs.cmake",
+        "llvm-vs-code-extensions.vscode-clangd",
+        "ms-vscode.makefile-tools",
+        "vadimcn.vscode-lldb",
+        "GitHub.vscode-pull-request-github"
+      ],
+      "settings": {
+        "cmake.configureOnOpen": false,
+        "C_Cpp.default.cppStandard": "c++20",
+        "files.eol": "\n"
+      }
+    }
+  },
+  "postCreateCommand": "bash .devcontainer/setup-android-sdk.sh",
+  "postStartCommand": "bash .devcontainer/verify-toolchain.sh",
+  "forwardPorts": [],
+  "portsAttributes": {}
+}
