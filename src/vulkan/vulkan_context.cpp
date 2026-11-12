@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <limits>
 #include <vector>
+#include <cstring>
 namespace rhizo {
 VulkanContext::~VulkanContext(){reset();}
 void VulkanContext::set_error(const char*op,VkResult r){last_error_=op;last_error_+=" failed (VkResult ";last_error_+=std::to_string(static_cast<int32_t>(r));last_error_+=")";}
@@ -25,12 +26,30 @@ bool VulkanContext::select_physical_device(uint32_t api){
 VulkanStatus VulkanContext::initialize(const char*app,uint32_t requested){
  reset();last_error_.clear();const uint32_t api=std::min(requested,static_cast<uint32_t>(VK_API_VERSION_1_1));
  const char* instance_exts[]={VK_KHR_SURFACE_EXTENSION_NAME,VK_KHR_ANDROID_SURFACE_EXTENSION_NAME};
+ uint32_t instance_count=0;
+ VkResult r=vkEnumerateInstanceExtensionProperties(nullptr,&instance_count,nullptr);
+ if(r!=VK_SUCCESS){set_error("vkEnumerateInstanceExtensionProperties",r);return VulkanStatus::Failure;}
+ std::vector<VkExtensionProperties> available_instance(instance_count);
+ r=vkEnumerateInstanceExtensionProperties(nullptr,&instance_count,available_instance.data());
+ if(r!=VK_SUCCESS){set_error("vkEnumerateInstanceExtensionProperties(list)",r);return VulkanStatus::Failure;}
+ for(const char* required:instance_exts){
+  const bool found=std::any_of(available_instance.begin(),available_instance.end(),[&](const VkExtensionProperties& e){return std::strcmp(e.extensionName,required)==0;});
+  if(!found){last_error_=std::string("Required Vulkan instance extension is unavailable: ")+required;return VulkanStatus::UnsupportedDevice;}
+ }
  VkApplicationInfo ai{VK_STRUCTURE_TYPE_APPLICATION_INFO};ai.pApplicationName=app;ai.applicationVersion=VK_MAKE_API_VERSION(0,0,1,0);ai.pEngineName="RHIZO";ai.engineVersion=VK_MAKE_API_VERSION(0,0,1,0);ai.apiVersion=api;
  VkInstanceCreateInfo ii{VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};ii.pApplicationInfo=&ai;ii.enabledExtensionCount=2;ii.ppEnabledExtensionNames=instance_exts;
- VkResult r=vkCreateInstance(&ii,nullptr,&instance_);if(r!=VK_SUCCESS){set_error("vkCreateInstance",r);reset();return VulkanStatus::Failure;}
+ r=vkCreateInstance(&ii,nullptr,&instance_);if(r!=VK_SUCCESS){set_error("vkCreateInstance",r);reset();return VulkanStatus::Failure;}
  if(!select_physical_device(api)){bool u=last_error_.find("No compatible")!=std::string::npos||last_error_.find("No Vulkan")!=std::string::npos;auto e=last_error_;reset();last_error_=e;return u?VulkanStatus::UnsupportedDevice:VulkanStatus::Failure;}
  float priority=1;VkDeviceQueueCreateInfo qi{VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO};qi.queueFamilyIndex=graphics_queue_family_;qi.queueCount=1;qi.pQueuePriorities=&priority;
  VkPhysicalDeviceFeatures supported{};vkGetPhysicalDeviceFeatures(physical_device_,&supported);VkPhysicalDeviceFeatures enabled{};enabled.samplerAnisotropy=supported.samplerAnisotropy;
+ uint32_t extension_count=0;
+ r=vkEnumerateDeviceExtensionProperties(physical_device_,nullptr,&extension_count,nullptr);
+ if(r!=VK_SUCCESS){set_error("vkEnumerateDeviceExtensionProperties",r);reset();return VulkanStatus::Failure;}
+ std::vector<VkExtensionProperties> available_extensions(extension_count);
+ r=vkEnumerateDeviceExtensionProperties(physical_device_,nullptr,&extension_count,available_extensions.data());
+ if(r!=VK_SUCCESS){set_error("vkEnumerateDeviceExtensionProperties(list)",r);reset();return VulkanStatus::Failure;}
+ const bool swapchain_available=std::any_of(available_extensions.begin(),available_extensions.end(),[](const VkExtensionProperties& e){return std::strcmp(e.extensionName,VK_KHR_SWAPCHAIN_EXTENSION_NAME)==0;});
+ if(!swapchain_available){last_error_="Selected Vulkan device does not support VK_KHR_swapchain";reset();return VulkanStatus::UnsupportedDevice;}
  const char* device_exts[]={VK_KHR_SWAPCHAIN_EXTENSION_NAME};
  VkDeviceCreateInfo di{VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};di.queueCreateInfoCount=1;di.pQueueCreateInfos=&qi;di.pEnabledFeatures=&enabled;di.enabledExtensionCount=1;di.ppEnabledExtensionNames=device_exts;
  r=vkCreateDevice(physical_device_,&di,nullptr,&device_);if(r!=VK_SUCCESS){set_error("vkCreateDevice",r);reset();return VulkanStatus::Failure;}

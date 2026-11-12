@@ -27,11 +27,13 @@ FetchContent_Declare(assimp
   GIT_SHALLOW TRUE)
 FetchContent_MakeAvailable(assimp)
 find_library(ANDROID_VULKAN_LIBRARY vulkan REQUIRED)
-find_library(ANDROID_LOG_LIBRARY log)\nfind_library(ANDROID_LIBRARY android REQUIRED)
+find_library(ANDROID_LOG_LIBRARY log)
+find_library(ANDROID_LIBRARY android REQUIRED)
 find_library(ANDROID_Z_LIBRARY z REQUIRED)
 add_library(rhizo SHARED
   src/core/rhizo.cpp
-  src/vulkan/vulkan_context.cpp\n  src/vulkan/viewport.cpp
+  src/vulkan/vulkan_context.cpp
+  src/vulkan/viewport.cpp
   src/vulkan/gpu_buffer.cpp
   src/vulkan/shadow_map.cpp
   src/scene/scene.cpp
