@@ -78,12 +78,12 @@ std::string resolve_texture(const aiScene*scene,const fs::path&model_dir,const f
  }
  return file.string();
 }
-void import_node(Scene&out,const aiScene*in,const aiNode*node,EntityId parent,ImportReport&report){
+void import_node(Scene&out,const aiScene*in,const aiNode*node,EntityId parent,uint32_t mesh_base,ImportReport&report){
  EntityId id=out.create(node->mName.C_Str(),parent);++report.nodes;
  aiVector3D scale,position;aiQuaternion rotation;node->mTransformation.Decompose(scale,rotation,position);
  if(auto*n=out.get(id)){n->local.position=vec(position);n->local.rotation=quat(rotation);n->local.scale=vec(scale);}
  for(unsigned i=0;i<node->mNumMeshes;i++)if(node->mMeshes[i]<out.meshes.size())out.get(id)->mesh_indices.push_back(node->mMeshes[i]);
- for(unsigned i=0;i<node->mNumChildren;i++)import_node(out,in,node->mChildren[i],id,report);
+ for(unsigned i=0;i<node->mNumChildren;i++)import_node(out,in,node->mChildren[i],id,mesh_base,report);
 }
 }
 bool import_model(Scene&scene,const std::string&path,const std::string&cache,ImportReport&report,std::string&error){
@@ -132,7 +132,7 @@ bool import_model(Scene&scene,const std::string&path,const std::string&cache,Imp
   for(unsigned f=0;f<src->mNumFaces;f++){const aiFace&face=src->mFaces[f];for(unsigned j=0;j<face.mNumIndices;j++)mesh.indices.push_back(face.mIndices[j]);}
   scene.meshes.push_back(std::move(mesh));++report.meshes;
  }
- report.model_path=actual.string();import_node(scene,in,in->mRootNode,kInvalidEntity,report);
+ report.model_path=actual.string();import_node(scene,in,in->mRootNode,kInvalidEntity,mesh_base,report);
  for(size_t i=mesh_base;i<scene.meshes.size();i++)scene.meshes[i].material_index=std::max(scene.meshes[i].material_index,material_base);
  return true;
 }
