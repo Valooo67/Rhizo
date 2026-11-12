@@ -7,8 +7,6 @@
 #include "rhizo/model_importer.hpp"
 #include "rhizo/shadow_map.hpp"
 #include "rhizo/editor_geometry.hpp"
-#include "rhizo/shadow_map.hpp"
-#include "rhizo/editor_geometry.hpp"
 
 #include <algorithm>
 #include <cstring>
@@ -25,7 +23,6 @@ struct RhizoContext {
   std::vector<RhizoBuffer*> buffers;
   rhizo::Scene scene;
   rhizo::Animation animation;
-  std::unique_ptr<rhizo::ShadowMap> shadow_map;
   std::unique_ptr<rhizo::ShadowMap> shadow_map;
 };
 
