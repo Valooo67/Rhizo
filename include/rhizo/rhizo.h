@@ -50,6 +50,8 @@ typedef struct RhizoMeshInfo {
   uint32_t struct_size,vertex_count,index_count,material_index;
   char name[128];
 } RhizoMeshInfo;
+typedef struct RhizoShadowMapInfo { uint32_t struct_size,width,height,format; } RhizoShadowMapInfo;
+typedef struct RhizoEditorVertex { float position[3],color[4]; } RhizoEditorVertex;
 typedef struct RhizoMaterialInfo {
   uint32_t struct_size;
   float base_color[4],metallic,roughness;
@@ -77,6 +79,13 @@ RHIZO_API RhizoResult rhizo_scene_import_model(RhizoContext*,const char*,const c
 RHIZO_API uint32_t rhizo_scene_get_mesh_count(const RhizoContext*);
 RHIZO_API RhizoResult rhizo_scene_get_mesh_info(const RhizoContext*,uint32_t,RhizoMeshInfo*);
 RHIZO_API uint32_t rhizo_scene_get_material_count(const RhizoContext*);
+RHIZO_API RhizoResult rhizo_shadow_map_create(RhizoContext*,uint32_t,uint32_t,RhizoShadowMapInfo*);
+RHIZO_API void rhizo_shadow_map_destroy(RhizoContext*);
+RHIZO_API uint32_t rhizo_editor_grid_vertex_count(float,uint32_t);
+RHIZO_API RhizoResult rhizo_editor_grid_vertices(float,uint32_t,RhizoEditorVertex*,uint32_t);
+RHIZO_API uint32_t rhizo_editor_gizmo_vertex_count(void);
+RHIZO_API RhizoResult rhizo_editor_gizmo_vertices(const float[3],float,RhizoEditorVertex*,uint32_t);
+
 RHIZO_API RhizoResult rhizo_scene_get_material_info(const RhizoContext*,uint32_t,RhizoMaterialInfo*);
 #ifdef __cplusplus
 }

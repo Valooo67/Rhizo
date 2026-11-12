@@ -33,9 +33,11 @@ add_library(rhizo SHARED
   src/core/rhizo.cpp
   src/vulkan/vulkan_context.cpp
   src/vulkan/gpu_buffer.cpp
+  src/vulkan/shadow_map.cpp
   src/scene/scene.cpp
   src/scene/animation.cpp
-  src/scene/model_importer.cpp)
+  src/scene/model_importer.cpp
+  src/scene/editor_geometry.cpp)
 target_include_directories(rhizo PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(rhizo PRIVATE ${ANDROID_VULKAN_LIBRARY} ${ANDROID_Z_LIBRARY} assimp)
 if(ANDROID_LOG_LIBRARY)
