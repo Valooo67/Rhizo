@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-echo "===== RHIZO REMOTE TERMINAL ====="
+echo "===== RHIZO REMOTE BUILD ====="
 echo "UTC: $(date -u +%FT%TZ)"
 echo "Host: $(uname -a)"
 echo
@@ -17,7 +17,7 @@ test -d "${ANDROID_HOME}/ndk/28.2.13676358"
 echo "NDK 28.2.13676358: present"
 echo
 echo "===== SOURCE TREE ====="
-find include src -maxdepth 3 -type f -print | sort
+find include src -maxdepth 4 -type f -print | sort
 echo
 echo "===== CMAKE CONFIGURE (Android ARM64) ====="
 cmake -S . -B build-android \
@@ -30,7 +30,11 @@ echo
 echo "===== BUILD librhizo.so ====="
 cmake --build build-android --parallel 2
 echo
+echo "===== ABI / EXPORTED API CHECK ====="
+llvm-readelf -h build-android/librhizo.so | grep -E 'Class:|Machine:'
+llvm-nm -D --defined-only build-android/librhizo.so | grep ' rhizo_'
+echo
 echo "===== BUILD OUTPUT ====="
 ls -lh build-android/librhizo.so
 file build-android/librhizo.so
-echo "===== RHIZO REMOTE BUILD: SUCCESS ====="
+echo "===== RHIZO CORE FOUNDATION: SUCCESS ====="
