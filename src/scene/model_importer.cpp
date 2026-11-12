@@ -82,7 +82,7 @@ void import_node(Scene&out,const aiScene*in,const aiNode*node,EntityId parent,ui
  EntityId id=out.create(node->mName.C_Str(),parent);++report.nodes;
  aiVector3D scale,position;aiQuaternion rotation;node->mTransformation.Decompose(scale,rotation,position);
  if(auto*n=out.get(id)){n->local.position=vec(position);n->local.rotation=quat(rotation);n->local.scale=vec(scale);}
- for(unsigned i=0;i<node->mNumMeshes;i++)if(node->mMeshes[i]<out.meshes.size())out.get(id)->mesh_indices.push_back(node->mMeshes[i]);
+ for(unsigned i=0;i<node->mNumMeshes;i++)if(node->mMeshes[i]<in->mNumMeshes)out.get(id)->mesh_indices.push_back(mesh_base+node->mMeshes[i]);
  for(unsigned i=0;i<node->mNumChildren;i++)import_node(out,in,node->mChildren[i],id,mesh_base,report);
 }
 }
