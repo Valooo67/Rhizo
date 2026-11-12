@@ -7,6 +7,8 @@
 #include "rhizo/model_importer.hpp"
 #include "rhizo/shadow_map.hpp"
 #include "rhizo/editor_geometry.hpp"
+#include "rhizo/shadow_map.hpp"
+#include "rhizo/editor_geometry.hpp"
 
 #include <algorithm>
 #include <cstring>
@@ -23,6 +25,7 @@ struct RhizoContext {
   std::vector<RhizoBuffer*> buffers;
   rhizo::Scene scene;
   rhizo::Animation animation;
+  std::unique_ptr<rhizo::ShadowMap> shadow_map;
   std::unique_ptr<rhizo::ShadowMap> shadow_map;
 };
 
@@ -264,4 +267,37 @@ RhizoResult rhizo_scene_get_material_info(const RhizoContext*c,uint32_t i,RhizoM
   cp(out->base_color_texture,sizeof(out->base_color_texture),m.base_color_texture);cp(out->normal_texture,sizeof(out->normal_texture),m.normal_texture);cp(out->metallic_roughness_texture,sizeof(out->metallic_roughness_texture),m.metallic_roughness_texture);cp(out->emissive_texture,sizeof(out->emissive_texture),m.emissive_texture);return RHIZO_SUCCESS;
 }
 
+
+RhizoResult rhizo_shadow_map_create(RhizoContext* c,uint32_t width,uint32_t height,RhizoShadowMapInfo* out){
+  if(!c||!out||out->struct_size<sizeof(RhizoShadowMapInfo))return RHIZO_ERROR_INVALID_ARGUMENT;
+  try {
+    auto map=std::make_unique<rhizo::ShadowMap>();std::string error;
+    if(!map->create(c->vulkan,width,height,error)){c->last_error=std::move(error);return RHIZO_ERROR_VULKAN;}
+    out->width=map->width();out->height=map->height();out->format=static_cast<uint32_t>(map->format());
+    c->shadow_map=std::move(map);return RHIZO_SUCCESS;
+  } catch (...) { c->last_error="Unable to allocate shadow map";return RHIZO_ERROR_OUT_OF_MEMORY; }
+}
+void rhizo_shadow_map_destroy(RhizoContext* c){if(c)c->shadow_map.reset();}
+uint32_t rhizo_editor_grid_vertex_count(float extent,uint32_t subdivisions){
+  return static_cast<uint32_t>(rhizo::make_grid(extent,subdivisions).vertices.size());
+}
+RhizoResult rhizo_editor_grid_vertices(float extent,uint32_t subdivisions,RhizoEditorVertex* out,uint32_t capacity){
+  if(!out)return RHIZO_ERROR_INVALID_ARGUMENT;
+  const auto geometry=rhizo::make_grid(extent,subdivisions);
+  if(capacity<geometry.vertices.size())return RHIZO_ERROR_INVALID_ARGUMENT;
+  for(size_t i=0;i<geometry.vertices.size();++i){const auto&v=geometry.vertices[i];
+    out[i].position[0]=v.position.x;out[i].position[1]=v.position.y;out[i].position[2]=v.position.z;
+    out[i].color[0]=v.color.x;out[i].color[1]=v.color.y;out[i].color[2]=v.color.z;out[i].color[3]=v.color.w;}
+  return RHIZO_SUCCESS;
+}
+uint32_t rhizo_editor_gizmo_vertex_count(void){return 18u;}
+RhizoResult rhizo_editor_gizmo_vertices(const float origin[3],float axis_length,RhizoEditorVertex* out,uint32_t capacity){
+  if(!origin||!out||capacity<18u)return RHIZO_ERROR_INVALID_ARGUMENT;
+  const auto geometry=rhizo::make_transform_gizmo({origin[0],origin[1],origin[2]},axis_length);
+  if(geometry.vertices.size()!=18u)return RHIZO_ERROR_INVALID_ARGUMENT;
+  for(size_t i=0;i<geometry.vertices.size();++i){const auto&v=geometry.vertices[i];
+    out[i].position[0]=v.position.x;out[i].position[1]=v.position.y;out[i].position[2]=v.position.z;
+    out[i].color[0]=v.color.x;out[i].color[1]=v.color.y;out[i].color[2]=v.color.z;out[i].color[3]=v.color.w;}
+  return RHIZO_SUCCESS;
+}
 }  // extern "C"
