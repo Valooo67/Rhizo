@@ -1,22 +1,39 @@
 # RHIZO Engine
 
-RHIZO is the native Android ARM64 3D runtime for Flux Studio. Flux owns editor UI, timeline and 2D composition; RHIZO owns the 3D runtime.
+RHIZO is the native Android ARM64 3D runtime for Flux Studio. The engine exposes a stable C ABI so the Android application can call it from JNI without crossing the boundary with C++ objects.
 
-## Implemented foundation
+## Implemented runtime foundation
 
-- Android `arm64-v8a` CMake shared-library target.
-- Versioned C ABI with opaque context and buffer handles.
-- Vulkan instance creation, physical-device selection and logical-device creation.
-- Graphics queue and transient/resettable command pool.
-- Physical-device identification (vendor/device IDs, API/driver versions and name).
-- Host-visible and device-local GPU buffer allocation.
-- Staging-buffer uploads into device-local resources.
-- Serialized immediate command submission with fence completion and transfer-to-GPU-read visibility barrier.
-- Explicit cleanup of buffers owned by a context.
+- Android `arm64-v8a` shared-library target and versioned C ABI.
+- Vulkan instance/device selection, graphics queue and command pool.
+- Physical-device information.
+- Host-visible and device-local GPU buffers with staging uploads and transfer visibility barriers.
+- Scene graph with entity IDs, parent/child hierarchy, local transforms and recursive world matrices.
+- Transform animation tracks: position, quaternion rotation (slerp) and scale.
+- Assimp-based FBX, glTF/GLB, OBJ and DAE import.
+- PBR material metadata: base color, metallic, roughness, base-color, normal, metallic and emissive texture references.
+- Embedded material texture extraction from imported assets.
+- ZIP package extraction for ordinary ZIP archives, with path traversal protection and a 512 MiB per-entry extraction limit.
+
+## Current C ABI surface
+
+Public header: `include/rhizo/rhizo.h`.
+
+- Runtime and GPU: `rhizo_create`, `rhizo_get_device_info`, `rhizo_buffer_create`, `rhizo_buffer_write`.
+- Hierarchy: `rhizo_scene_create_node`, `rhizo_scene_destroy_node`, `rhizo_scene_set_parent`, `rhizo_scene_get_node`.
+- Transforms: `rhizo_scene_set_transform`, `rhizo_scene_get_transform`.
+- Keyframes: `rhizo_scene_set_keyframe`, `rhizo_scene_evaluate_animation`.
+- Assets: `rhizo_scene_import_model`, `rhizo_scene_get_mesh_info`, `rhizo_scene_get_material_info`.
+
+The API is intentionally C-compatible for JNI. The application can traverse the scene tree by enumerating nodes and reading each node's parent ID, child count, mesh count and name.
+
+## Model formats
+
+- FBX, GLB/glTF, OBJ and DAE are decoded by Assimp.
+- ZIP packages are extracted to the caller-provided cache directory. RHIZO selects a supported model file in the archive and resolves adjacent texture files. Embedded textures are copied to the cache.
+- ZIP64 and unsupported ZIP compression methods are not currently supported. The archive is not treated as an arbitrary filesystem image.
 
 ## Build
-
-Configure with the Android NDK CMake toolchain:
 
 ```sh
 cmake -S . -B build-android \
@@ -27,24 +44,8 @@ cmake -S . -B build-android \
 cmake --build build-android --parallel
 ```
 
-The Linux runner is a cross-compilation host. Vulkan runtime validation must happen on an Android device. Public C ABI: `include/rhizo/rhizo.h`. No C++ exceptions or STL objects cross the ABI boundary.
+Assimp is fetched at configure time and built for the Android target. The Linux CI runner cross-compiles the native library; that does not replace runtime testing on the target Android GPU.
 
-## Vulkan buffers
+## Not yet complete
 
-Supported usage flags: vertex, index, uniform, storage and indirect.
-
-Memory mode is selected with an optional flag in `RhizoBufferCreateInfo.usage`:
-
-- `RHIZO_BUFFER_CPU_VISIBLE`: host-visible memory; writes map the allocation and flush non-coherent ranges when required.
-- `RHIZO_BUFFER_GPU_ONLY`: device-local memory; `rhizo_buffer_write` uploads through a temporary host-visible staging buffer and a Vulkan transfer command.
-- If neither memory flag is specified, RHIZO keeps the original host-visible behavior for compatibility.
-- Setting both memory flags is invalid.
-
-Minimal lifecycle:
-
-1. Create a `RhizoContext` with `rhizo_create`.
-2. Fill `RhizoBufferCreateInfo` with `struct_size`, a usage mask, and byte size.
-3. Call `rhizo_buffer_create`, then upload bytes with `rhizo_buffer_write`.
-4. Call `rhizo_buffer_destroy` for individual resources. `rhizo_destroy` also releases all remaining buffers owned by that context.
-
-Buffer handles are opaque and are not Vulkan handles. Device-local uploads currently use a synchronous one-shot transfer path; a persistent staging ring, suballocation and asynchronous frame scheduler belong to later renderer stages.
+This is not yet the full viewport renderer. Android surface/swapchain presentation, PBR draw pipeline, shadow-map and hardware ray-query shadow backends, editor grid/gizmo draw passes, camera/light components, and end-to-end Flux Studio JNI/UI integration still require implementation and device validation. The current animation API covers entity transforms; arbitrary material/light/camera property tracks are not yet exposed.
