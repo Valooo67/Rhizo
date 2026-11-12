@@ -50,6 +50,8 @@ typedef struct RhizoMeshInfo {
   uint32_t struct_size,vertex_count,index_count,material_index;
   char name[128];
 } RhizoMeshInfo;
+typedef struct RhizoCameraInfo { uint32_t struct_size; float vertical_fov,near_plane,far_plane,orthographic_size; uint8_t orthographic,reserved[3]; } RhizoCameraInfo;
+typedef struct RhizoLightInfo { uint32_t struct_size,type; float color[3],intensity,range,inner_cone,outer_cone; uint8_t casts_shadows,reserved[3]; } RhizoLightInfo;
 typedef struct RhizoShadowMapInfo { uint32_t struct_size,width,height,format; } RhizoShadowMapInfo;
 typedef struct RhizoEditorVertex { float position[3],color[4]; } RhizoEditorVertex;
 typedef struct RhizoMaterialInfo {
@@ -79,7 +81,7 @@ RHIZO_API RhizoResult rhizo_scene_import_model(RhizoContext*,const char*,const c
 RHIZO_API uint32_t rhizo_scene_get_mesh_count(const RhizoContext*);
 RHIZO_API RhizoResult rhizo_scene_get_mesh_info(const RhizoContext*,uint32_t,RhizoMeshInfo*);
 RHIZO_API uint32_t rhizo_scene_get_material_count(const RhizoContext*);
-RHIZO_API RhizoResult rhizo_shadow_map_create(RhizoContext*,uint32_t,uint32_t,RhizoShadowMapInfo*);
+RHIZO_API RhizoResult rhizo_scene_set_camera(RhizoContext*,uint32_t,const RhizoCameraInfo*);\nRHIZO_API RhizoResult rhizo_scene_get_camera(const RhizoContext*,uint32_t,RhizoCameraInfo*);\nRHIZO_API RhizoResult rhizo_scene_set_light(RhizoContext*,uint32_t,const RhizoLightInfo*);\nRHIZO_API RhizoResult rhizo_scene_get_light(const RhizoContext*,uint32_t,RhizoLightInfo*);\nRHIZO_API RhizoResult rhizo_shadow_map_create(RhizoContext*,uint32_t,uint32_t,RhizoShadowMapInfo*);
 RHIZO_API void rhizo_shadow_map_destroy(RhizoContext*);
 RHIZO_API uint32_t rhizo_editor_grid_vertex_count(float,uint32_t);
 RHIZO_API RhizoResult rhizo_editor_grid_vertices(float,uint32_t,RhizoEditorVertex*,uint32_t);
