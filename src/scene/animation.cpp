@@ -7,6 +7,12 @@ bool Animation::set_key(EntityId id,TrackProperty p,double t,const Transform&v){
   if(it==tracks_.end()){tracks_.push_back({id,p,{}});it=std::prev(tracks_.end());}
   it->keys[t]={t,v};duration_=std::max(duration_,t);return true;
 }
+bool Animation::set_parameter_key(EntityId id,uint32_t property,double t,Vec4 value){
+  if(id==kInvalidEntity||property<3||property>11||!std::isfinite(t)||t<0||!std::isfinite(value.x)||!std::isfinite(value.y)||!std::isfinite(value.z)||!std::isfinite(value.w))return false;
+  auto it=std::find_if(parameter_tracks_.begin(),parameter_tracks_.end(),[&](const auto&x){return x.entity==id&&x.property==property;});
+  if(it==parameter_tracks_.end()){parameter_tracks_.push_back({id,property,{}});it=std::prev(parameter_tracks_.end());}
+  it->keys[t]={t,value};duration_=std::max(duration_,t);return true;
+}
 bool Animation::remove_key(EntityId id,TrackProperty p,double t){
   auto it=std::find_if(tracks_.begin(),tracks_.end(),[&](const auto&x){return x.entity==id&&x.property==p;});
   return it!=tracks_.end()&&it->keys.erase(t)>0;

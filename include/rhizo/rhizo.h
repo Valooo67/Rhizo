@@ -77,6 +77,7 @@ RHIZO_API uint32_t rhizo_scene_get_node_count(const RhizoContext*);
 RHIZO_API RhizoResult rhizo_scene_get_node(const RhizoContext*,uint32_t,RhizoSceneNodeInfo*);
 RHIZO_API RhizoResult rhizo_scene_set_keyframe(RhizoContext*,uint32_t,uint32_t,double,const RhizoTransform*);
 RHIZO_API RhizoResult rhizo_scene_evaluate_animation(RhizoContext*,double);
+RHIZO_API RhizoResult rhizo_scene_set_parameter_keyframe(RhizoContext*,uint32_t,uint32_t,double,const float[4]);
 RHIZO_API RhizoResult rhizo_scene_import_model(RhizoContext*,const char*,const char*,RhizoImportReport*);
 RHIZO_API uint32_t rhizo_scene_get_mesh_count(const RhizoContext*);
 RHIZO_API RhizoResult rhizo_scene_get_mesh_info(const RhizoContext*,uint32_t,RhizoMeshInfo*);

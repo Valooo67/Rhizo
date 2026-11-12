@@ -314,4 +314,9 @@ RhizoResult rhizo_scene_get_light(const RhizoContext*c,uint32_t id,RhizoLightInf
   if(!c||!out||out->struct_size<sizeof(RhizoLightInfo))return RHIZO_ERROR_INVALID_ARGUMENT;const auto*n=c->scene.get(id);if(!n||!n->has_light)return RHIZO_ERROR_INVALID_ARGUMENT;
   out->type=static_cast<uint32_t>(n->light.type);out->color[0]=n->light.color.x;out->color[1]=n->light.color.y;out->color[2]=n->light.color.z;out->intensity=n->light.intensity;out->range=n->light.range;out->inner_cone=n->light.inner_cone;out->outer_cone=n->light.outer_cone;out->casts_shadows=n->light.casts_shadows?1:0;return RHIZO_SUCCESS;
 }
+
+RhizoResult rhizo_scene_set_parameter_keyframe(RhizoContext*c,uint32_t id,uint32_t property,double time,const float value[4]){
+  if(!c||!value)return RHIZO_ERROR_INVALID_ARGUMENT;
+  return c->animation.set_parameter_key(id,property,time,{value[0],value[1],value[2],value[3]})?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;
+}
 }  // extern "C"
