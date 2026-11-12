@@ -50,6 +50,14 @@ typedef struct RhizoMeshInfo {
   uint32_t struct_size,vertex_count,index_count,material_index;
   char name[128];
 } RhizoMeshInfo;
+typedef enum RhizoAnimatedProperty {
+  RHIZO_ANIM_POSITION=0, RHIZO_ANIM_ROTATION=1, RHIZO_ANIM_SCALE=2,
+  RHIZO_ANIM_CAMERA_VERTICAL_FOV=3, RHIZO_ANIM_CAMERA_NEAR=4,
+  RHIZO_ANIM_CAMERA_FAR=5, RHIZO_ANIM_CAMERA_ORTHOGRAPHIC_SIZE=6,
+  RHIZO_ANIM_LIGHT_INTENSITY=7, RHIZO_ANIM_LIGHT_RANGE=8,
+  RHIZO_ANIM_LIGHT_INNER_CONE=9, RHIZO_ANIM_LIGHT_OUTER_CONE=10,
+  RHIZO_ANIM_LIGHT_COLOR=11
+} RhizoAnimatedProperty;
 typedef struct RhizoCameraInfo { uint32_t struct_size; float vertical_fov,near_plane,far_plane,orthographic_size; uint8_t orthographic,reserved[3]; } RhizoCameraInfo;
 typedef struct RhizoLightInfo { uint32_t struct_size,type; float color[3],intensity,range,inner_cone,outer_cone; uint8_t casts_shadows,reserved[3]; } RhizoLightInfo;
 typedef struct RhizoShadowMapInfo { uint32_t struct_size,width,height,format; } RhizoShadowMapInfo;
