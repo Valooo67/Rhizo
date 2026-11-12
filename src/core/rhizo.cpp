@@ -198,10 +198,7 @@ void rhizo_destroy(RhizoContext* context) {
   }
 
   for (RhizoBuffer* buffer : context->buffers) {
-    if (buffer != nullptr) {
-      buffer->gpu.destroy();
-      buffer->owner = nullptr;
-    }
+    delete buffer;
   }
   context->buffers.clear();
   delete context;
