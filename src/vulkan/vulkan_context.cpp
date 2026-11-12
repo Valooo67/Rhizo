@@ -114,14 +114,16 @@ VulkanStatus VulkanContext::initialize(const char* application_name,
   const uint32_t api_version =
       std::min(requested_api, static_cast<uint32_t>(VK_API_VERSION_1_1));
 
-  VkApplicationInfo application{VK_STRUCTURE_TYPE_APPLICATION_INFO};
+  VkApplicationInfo application{};
+  application.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
   application.pApplicationName = application_name;
   application.applicationVersion = VK_MAKE_API_VERSION(0, 0, 1, 0);
   application.pEngineName = "RHIZO";
   application.engineVersion = VK_MAKE_API_VERSION(0, 0, 1, 0);
   application.apiVersion = api_version;
 
-  VkInstanceCreateInfo instance_info{VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
+  VkInstanceCreateInfo instance_info{};
+  instance_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
   instance_info.pApplicationInfo = &application;
 
   VkResult result = vkCreateInstance(&instance_info, nullptr, &instance_);
@@ -142,7 +144,8 @@ VulkanStatus VulkanContext::initialize(const char* application_name,
   }
 
   const float priority = 1.0F;
-  VkDeviceQueueCreateInfo queue_info{VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO};
+  VkDeviceQueueCreateInfo queue_info{};
+  queue_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
   queue_info.queueFamilyIndex = graphics_queue_family_;
   queue_info.queueCount = 1;
   queue_info.pQueuePriorities = &priority;
@@ -153,7 +156,8 @@ VulkanStatus VulkanContext::initialize(const char* application_name,
   VkPhysicalDeviceFeatures enabled_features{};
   enabled_features.samplerAnisotropy = supported_features.samplerAnisotropy;
 
-  VkDeviceCreateInfo device_info{VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
+  VkDeviceCreateInfo device_info{};
+  device_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
   device_info.queueCreateInfoCount = 1;
   device_info.pQueueCreateInfos = &queue_info;
   device_info.pEnabledFeatures = &enabled_features;
@@ -167,7 +171,8 @@ VulkanStatus VulkanContext::initialize(const char* application_name,
 
   vkGetDeviceQueue(device_, graphics_queue_family_, 0, &graphics_queue_);
 
-  VkCommandPoolCreateInfo pool_info{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
+  VkCommandPoolCreateInfo pool_info{};
+  pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
   pool_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT |
                     VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
   pool_info.queueFamilyIndex = graphics_queue_family_;
@@ -194,7 +199,8 @@ bool VulkanContext::copy_buffer(VkBuffer source, VkBuffer destination,
   std::lock_guard<std::mutex> lock(queue_mutex_);
 
   VkCommandBuffer command_buffer = VK_NULL_HANDLE;
-  VkCommandBufferAllocateInfo allocation{VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
+  VkCommandBufferAllocateInfo allocation{};
+  allocation.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
   allocation.commandPool = command_pool_;
   allocation.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
   allocation.commandBufferCount = 1;
@@ -206,7 +212,8 @@ bool VulkanContext::copy_buffer(VkBuffer source, VkBuffer destination,
     return false;
   }
 
-  VkCommandBufferBeginInfo begin{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
+  VkCommandBufferBeginInfo begin{};
+  begin.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
   begin.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
   result = vkBeginCommandBuffer(command_buffer, &begin);
   if (result != VK_SUCCESS) {
@@ -220,6 +227,19 @@ bool VulkanContext::copy_buffer(VkBuffer source, VkBuffer destination,
   region.size = size;
   vkCmdCopyBuffer(command_buffer, source, destination, 1, &region);
 
+  VkBufferMemoryBarrier barrier{};
+  barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+  barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+  barrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+  barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+  barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+  barrier.buffer = destination;
+  barrier.offset = 0;
+  barrier.size = size;
+  vkCmdPipelineBarrier(command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                       VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0,
+                       0, nullptr, 1, &barrier, 0, nullptr);
+
   result = vkEndCommandBuffer(command_buffer);
   if (result != VK_SUCCESS) {
     error = "vkEndCommandBuffer failed (VkResult " +
@@ -228,7 +248,8 @@ bool VulkanContext::copy_buffer(VkBuffer source, VkBuffer destination,
     return false;
   }
 
-  VkFenceCreateInfo fence_info{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
+  VkFenceCreateInfo fence_info{};
+  fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
   VkFence fence = VK_NULL_HANDLE;
   result = vkCreateFence(device_, &fence_info, nullptr, &fence);
   if (result != VK_SUCCESS) {
@@ -238,7 +259,8 @@ bool VulkanContext::copy_buffer(VkBuffer source, VkBuffer destination,
     return false;
   }
 
-  VkSubmitInfo submit{VK_STRUCTURE_TYPE_SUBMIT_INFO};
+  VkSubmitInfo submit{};
+  submit.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
   submit.commandBufferCount = 1;
   submit.pCommandBuffers = &command_buffer;
   result = vkQueueSubmit(graphics_queue_, 1, &submit, fence);
