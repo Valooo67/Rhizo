@@ -209,4 +209,56 @@ void rhizo_destroy(RhizoContext* context) {
   delete context;
 }
 
+
+RhizoResult rhizo_scene_create_node(RhizoContext* c,uint32_t parent,const char* name,uint32_t* out){
+  if(!c||!out||(parent!=0&&!c->scene.get(parent)))return RHIZO_ERROR_INVALID_ARGUMENT;
+  try{*out=c->scene.create(name&&*name?name:"Object",parent);return *out?RHIZO_SUCCESS:RHIZO_ERROR_OUT_OF_MEMORY;}catch(...){return RHIZO_ERROR_OUT_OF_MEMORY;}
+}
+RhizoResult rhizo_scene_destroy_node(RhizoContext*c,uint32_t id){return c&&c->scene.destroy(id)?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;}
+RhizoResult rhizo_scene_set_parent(RhizoContext*c,uint32_t id,uint32_t parent){return c&&c->scene.set_parent(id,parent)?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;}
+RhizoResult rhizo_scene_set_transform(RhizoContext*c,uint32_t id,const RhizoTransform*t){
+  if(!c||!t)return RHIZO_ERROR_INVALID_ARGUMENT;auto*n=c->scene.get(id);if(!n)return RHIZO_ERROR_INVALID_ARGUMENT;
+  n->local.position={t->position[0],t->position[1],t->position[2]};
+  n->local.rotation={t->rotation_xyzw[3],t->rotation_xyzw[0],t->rotation_xyzw[1],t->rotation_xyzw[2]};
+  n->local.scale={t->scale[0],t->scale[1],t->scale[2]};return RHIZO_SUCCESS;
+}
+RhizoResult rhizo_scene_get_transform(const RhizoContext*c,uint32_t id,RhizoTransform*out){
+  if(!c||!out)return RHIZO_ERROR_INVALID_ARGUMENT;const auto*n=c->scene.get(id);if(!n)return RHIZO_ERROR_INVALID_ARGUMENT;
+  out->position[0]=n->local.position.x;out->position[1]=n->local.position.y;out->position[2]=n->local.position.z;
+  out->rotation_xyzw[0]=n->local.rotation.x;out->rotation_xyzw[1]=n->local.rotation.y;out->rotation_xyzw[2]=n->local.rotation.z;out->rotation_xyzw[3]=n->local.rotation.w;
+  out->scale[0]=n->local.scale.x;out->scale[1]=n->local.scale.y;out->scale[2]=n->local.scale.z;return RHIZO_SUCCESS;
+}
+uint32_t rhizo_scene_get_node_count(const RhizoContext*c){return c?static_cast<uint32_t>(c->scene.nodes().size()):0;}
+RhizoResult rhizo_scene_get_node(const RhizoContext*c,uint32_t index,RhizoSceneNodeInfo*out){
+  if(!c||!out||out->struct_size<sizeof(RhizoSceneNodeInfo)||index>=c->scene.nodes().size())return RHIZO_ERROR_INVALID_ARGUMENT;
+  const auto&n=c->scene.nodes()[index];out->entity_id=n.id;out->parent_id=n.parent;out->child_count=static_cast<uint32_t>(n.children.size());out->mesh_count=static_cast<uint32_t>(n.mesh_indices.size());out->visible=n.visible?1:0;
+  std::memset(out->name,0,sizeof(out->name));std::strncpy(out->name,n.name.c_str(),sizeof(out->name)-1);return RHIZO_SUCCESS;
+}
+RhizoResult rhizo_scene_set_keyframe(RhizoContext*c,uint32_t id,uint32_t property,double time,const RhizoTransform*t){
+  if(!c||!t||property>2)return RHIZO_ERROR_INVALID_ARGUMENT;rhizo::Transform v;
+  v.position={t->position[0],t->position[1],t->position[2]};v.rotation={t->rotation_xyzw[3],t->rotation_xyzw[0],t->rotation_xyzw[1],t->rotation_xyzw[2]};v.scale={t->scale[0],t->scale[1],t->scale[2]};
+  return c->animation.set_key(id,static_cast<rhizo::TrackProperty>(property),time,v)?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;
+}
+RhizoResult rhizo_scene_evaluate_animation(RhizoContext*c,double time){return c&&c->animation.evaluate(c->scene,time)?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;}
+RhizoResult rhizo_scene_import_model(RhizoContext*c,const char*path,const char*cache,RhizoImportReport*out){
+  if(!c||!path||!*path||!out||out->struct_size<sizeof(RhizoImportReport))return RHIZO_ERROR_INVALID_ARGUMENT;
+  rhizo::ImportReport report;std::string error;
+  if(!rhizo::import_model(c->scene,path,cache?cache:"",report,error)){c->last_error=std::move(error);return RHIZO_ERROR_INTERNAL;}
+  out->node_count=report.nodes;out->mesh_count=report.meshes;out->material_count=report.materials;
+  std::memset(out->resolved_model_path,0,sizeof(out->resolved_model_path));std::strncpy(out->resolved_model_path,report.model_path.c_str(),sizeof(out->resolved_model_path)-1);return RHIZO_SUCCESS;
+}
+uint32_t rhizo_scene_get_mesh_count(const RhizoContext*c){return c?static_cast<uint32_t>(c->scene.meshes.size()):0;}
+RhizoResult rhizo_scene_get_mesh_info(const RhizoContext*c,uint32_t i,RhizoMeshInfo*out){
+  if(!c||!out||out->struct_size<sizeof(RhizoMeshInfo)||i>=c->scene.meshes.size())return RHIZO_ERROR_INVALID_ARGUMENT;
+  const auto&m=c->scene.meshes[i];out->vertex_count=static_cast<uint32_t>(m.vertices.size());out->index_count=static_cast<uint32_t>(m.indices.size());out->material_index=m.material_index;
+  std::memset(out->name,0,sizeof(out->name));std::strncpy(out->name,m.name.c_str(),sizeof(out->name)-1);return RHIZO_SUCCESS;
+}
+uint32_t rhizo_scene_get_material_count(const RhizoContext*c){return c?static_cast<uint32_t>(c->scene.materials.size()):0;}
+RhizoResult rhizo_scene_get_material_info(const RhizoContext*c,uint32_t i,RhizoMaterialInfo*out){
+  if(!c||!out||out->struct_size<sizeof(RhizoMaterialInfo)||i>=c->scene.materials.size())return RHIZO_ERROR_INVALID_ARGUMENT;
+  const auto&m=c->scene.materials[i];out->base_color[0]=m.base_color.x;out->base_color[1]=m.base_color.y;out->base_color[2]=m.base_color.z;out->base_color[3]=m.base_color.w;out->metallic=m.metallic;out->roughness=m.roughness;
+  auto cp=[](char*d,size_t n,const std::string&s){std::memset(d,0,n);std::strncpy(d,s.c_str(),n-1);};
+  cp(out->base_color_texture,sizeof(out->base_color_texture),m.base_color_texture);cp(out->normal_texture,sizeof(out->normal_texture),m.normal_texture);cp(out->metallic_roughness_texture,sizeof(out->metallic_roughness_texture),m.metallic_roughness_texture);cp(out->emissive_texture,sizeof(out->emissive_texture),m.emissive_texture);return RHIZO_SUCCESS;
+}
+
 }  // extern "C"
