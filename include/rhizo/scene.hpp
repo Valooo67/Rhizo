@@ -31,6 +31,9 @@ struct SceneNode {
   std::vector<EntityId> children;
   std::vector<uint32_t> mesh_indices;
   bool visible=true;
+  bool has_camera=false,has_light=false;
+  CameraComponent camera;
+  LightComponent light;
 };
 class Scene {
  public:
