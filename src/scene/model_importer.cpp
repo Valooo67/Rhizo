@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
-#include <filesystem>
+#include <filesystem>\n#include <functional>
 #include <fstream>
 #include <iterator>
 #include <limits>
@@ -57,6 +57,27 @@ bool extract_zip(const fs::path&zip,const fs::path&dest,std::string&error){
 }
 Vec3 vec(aiVector3D v){return {v.x,v.y,v.z};}
 Quat quat(aiQuaternion q){return {q.x,q.y,q.z,q.w};}
+std::string resolve_texture(const aiScene*scene,const fs::path&model_dir,const fs::path&cache,const aiString&texture){
+ std::string raw=texture.C_Str();
+ if(raw.empty())return {};
+ if(raw[0]!='*')return (model_dir/fs::path(raw)).lexically_normal().string();
+ unsigned index=0;try{index=static_cast<unsigned>(std::stoul(raw.substr(1)));}catch(...){return raw;}
+ if(index>=scene->mNumTextures)return raw;
+ const aiTexture*t=scene->mTextures[index];fs::path dir=cache/"rhizo_embedded_textures";
+ std::error_code ec;fs::create_directories(dir,ec);
+ std::string ext=t->mHeight==0?(t->achFormatHint[0]?t->achFormatHint:"bin"):"tga";
+ fs::path file=dir/("texture_"+std::to_string(index)+"."+ext);
+ if(fs::exists(file))return file.string();
+ std::ofstream out(file,std::ios::binary);if(!out)return raw;
+ if(t->mHeight==0){out.write(reinterpret_cast<const char*>(t->pcData),static_cast<std::streamsize>(t->mWidth));}
+ else{
+  const uint16_t w=static_cast<uint16_t>(std::min(t->mWidth,65535u)),h=static_cast<uint16_t>(std::min(t->mHeight,65535u));
+  unsigned char header[18]={0,0,2,0,0,0,0,0,0,0,0,0,static_cast<unsigned char>(w&255),static_cast<unsigned char>(w>>8),static_cast<unsigned char>(h&255),static_cast<unsigned char>(h>>8),32,8};
+  out.write(reinterpret_cast<const char*>(header),18);
+  for(uint32_t y=0;y<h;y++)for(uint32_t x=0;x<w;x++){const aiTexel&px=t->pcData[y*t->mWidth+x];const unsigned char bgra[4]={px.b,px.g,px.r,px.a};out.write(reinterpret_cast<const char*>(bgra),4);}
+ }
+ return file.string();
+}
 void import_node(Scene&out,const aiScene*in,const aiNode*node,EntityId parent,ImportReport&report){
  EntityId id=out.create(node->mName.C_Str(),parent);++report.nodes;
  aiVector3D scale,position;aiQuaternion rotation;node->mTransformation.Decompose(scale,rotation,position);
@@ -92,7 +113,7 @@ bool import_model(Scene&scene,const std::string&path,const std::string&cache,Imp
   float f=0;if(src->Get(AI_MATKEY_METALLIC_FACTOR,f)==AI_SUCCESS)m.metallic=f;
   if(src->Get(AI_MATKEY_ROUGHNESS_FACTOR,f)==AI_SUCCESS)m.roughness=f;
   aiString tex;
-  if(src->GetTexture(aiTextureType_BASE_COLOR,0,&tex)==AI_SUCCESS||src->GetTexture(aiTextureType_DIFFUSE,0,&tex)==AI_SUCCESS)m.base_color_texture=(actual.parent_path()/tex.C_Str()).lexically_normal().string();
+  if(src->GetTexture(aiTextureType_BASE_COLOR,0,&tex)==AI_SUCCESS||src->GetTexture(aiTextureType_DIFFUSE,0,&tex)==AI_SUCCESS)m.base_color_texture=resolve_texture(in,actual.parent_path(),fs::path(cache),tex);
   if(src->GetTexture(aiTextureType_NORMALS,0,&tex)==AI_SUCCESS||src->GetTexture(aiTextureType_HEIGHT,0,&tex)==AI_SUCCESS)m.normal_texture=(actual.parent_path()/tex.C_Str()).lexically_normal().string();
   if(src->GetTexture(aiTextureType_METALNESS,0,&tex)==AI_SUCCESS)m.metallic_roughness_texture=(actual.parent_path()/tex.C_Str()).lexically_normal().string();
   if(src->GetTexture(aiTextureType_EMISSIVE,0,&tex)==AI_SUCCESS)m.emissive_texture=(actual.parent_path()/tex.C_Str()).lexically_normal().string();
