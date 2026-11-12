@@ -57,7 +57,8 @@ bool GpuBuffer::create(VulkanContext& context, VkDeviceSize requested_size,
   non_coherent_atom_size_ =
       std::max<VkDeviceSize>(1, properties.limits.nonCoherentAtomSize);
 
-  VkBufferCreateInfo buffer_info{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+  VkBufferCreateInfo buffer_info{};
+  buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
   buffer_info.size = requested_size;
   buffer_info.usage = usage | (host_visible ? 0u : VK_BUFFER_USAGE_TRANSFER_DST_BIT);
   buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
@@ -91,7 +92,8 @@ bool GpuBuffer::create(VulkanContext& context, VkDeviceSize requested_size,
     return false;
   }
 
-  VkMemoryAllocateInfo allocation{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
+  VkMemoryAllocateInfo allocation{};
+  allocation.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
   allocation.allocationSize = requirements.size;
   allocation.memoryTypeIndex = memory_index;
 
@@ -157,7 +159,8 @@ bool GpuBuffer::write(VkDeviceSize offset, const void* data, VkDeviceSize length
         non_coherent_atom_size_;
     const VkDeviceSize end = std::min(allocation_size_, aligned_end);
 
-    VkMappedMemoryRange range{VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE};
+    VkMappedMemoryRange range{};
+    range.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
     range.memory = memory_;
     range.offset = begin;
     range.size = end == allocation_size_ ? VK_WHOLE_SIZE : end - begin;
