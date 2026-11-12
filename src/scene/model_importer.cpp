@@ -36,7 +36,7 @@ bool extract_zip(const fs::path&zip,const fs::path&dest,std::string&error){
   std::string name(reinterpret_cast<const char*>(b.data()+p+46),name_len);p+=46ull+name_len+extra_len+comment_len;
   if(!safe_name(name))continue;
   if(name.back()=='/'){fs::create_directories(dest/fs::path(name),ec);continue;}
-  if(uint64_t(local)+30>b.size()||u32(b,local)!=0x04034b50u){error="Invalid ZIP local file header";return false;}
+  if(uncompressed>512u*1024u*1024u||uint64_t(local)+30>b.size()||u32(b,local)!=0x04034b50u){error="Invalid ZIP local file header";return false;}
   const size_t data=local+30ull+u16(b,local+26)+u16(b,local+28);
   if(data+compressed>b.size()){error="ZIP entry data is truncated";return false;}
   std::vector<unsigned char>out(uncompressed);
@@ -78,7 +78,7 @@ bool import_model(Scene&scene,const std::string&path,const std::string&cache,Imp
    if(ext==".fbx"||ext==".glb"||ext==".gltf"||ext==".obj"||ext==".dae")candidates.push_back(it->path());
   }
   if(candidates.empty()){error="ZIP contains no supported model (FBX, GLB, glTF, OBJ or DAE)";return false;}
-  std::sort(candidates.begin(),candidates.end(),[](const auto&a,const auto&b){return a.extension()==".fbx"||a.extension()==".glb";});
+  std::sort(candidates.begin(),candidates.end(),[](const auto&a,const auto&b){auto rank=[](const fs::path&p){const auto e=p.extension().string();return e==".glb"?0:e==".fbx"?1:e==".gltf"?2:e==".obj"?3:4;};return rank(a)<rank(b);});
   actual=candidates.front();
  }
  Assimp::Importer importer;
