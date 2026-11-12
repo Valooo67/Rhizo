@@ -2,6 +2,9 @@
 
 #include "vulkan/gpu_buffer.hpp"
 #include "vulkan/vulkan_context.hpp"
+#include "rhizo/scene.hpp"
+#include "rhizo/animation.hpp"
+#include "rhizo/model_importer.hpp"
 
 #include <algorithm>
 #include <cstring>
@@ -16,6 +19,8 @@ struct RhizoContext {
   rhizo::VulkanContext vulkan;
   std::string last_error;
   std::vector<RhizoBuffer*> buffers;
+  rhizo::Scene scene;
+  rhizo::Animation animation;
 };
 
 struct RhizoBuffer {
