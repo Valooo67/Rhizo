@@ -29,6 +29,26 @@ bool Animation::evaluate(Scene&scene,double time)const{
     else if(track.property==TrackProperty::Scale)n->local.scale=a->scale+(b->scale-a->scale)*t;
     else n->local.rotation=slerp(a->rotation,b->rotation,t);
   }
+  for(const auto& track:parameter_tracks_){
+    auto*n=scene.get(track.entity);if(!n||track.keys.empty())continue;
+    auto hi=track.keys.lower_bound(time);Vec4 a{},b{};float t=0;
+    if(hi==track.keys.begin())a=b=hi->second.value;
+    else if(hi==track.keys.end())a=b=std::prev(hi)->second.value;
+    else{auto lo=std::prev(hi);a=lo->second.value;b=hi->second.value;const double span=hi->first-lo->first;t=span>0?static_cast<float>((time-lo->first)/span):0;}
+    const Vec4 v{a.x+(b.x-a.x)*t,a.y+(b.y-a.y)*t,a.z+(b.z-a.z)*t,a.w+(b.w-a.w)*t};
+    switch(track.property){
+      case 3: if(n->has_camera)n->camera.vertical_fov=v.x; break;
+      case 4: if(n->has_camera)n->camera.near_plane=v.x; break;
+      case 5: if(n->has_camera)n->camera.far_plane=v.x; break;
+      case 6: if(n->has_camera)n->camera.orthographic_size=v.x; break;
+      case 7: if(n->has_light)n->light.intensity=v.x; break;
+      case 8: if(n->has_light)n->light.range=v.x; break;
+      case 9: if(n->has_light)n->light.inner_cone=v.x; break;
+      case 10: if(n->has_light)n->light.outer_cone=v.x; break;
+      case 11: if(n->has_light)n->light.color={v.x,v.y,v.z}; break;
+      default: break;
+    }
+  }
   return true;
 }
 }
