@@ -8,7 +8,7 @@ bool Animation::set_key(EntityId id,TrackProperty p,double t,const Transform&v){
   it->keys[t]={t,v};duration_=std::max(duration_,t);return true;
 }
 bool Animation::set_parameter_key(EntityId id,uint32_t property,double t,Vec4 value){
-  if(id==kInvalidEntity||property<3||property>11||!std::isfinite(t)||t<0||!std::isfinite(value.x)||!std::isfinite(value.y)||!std::isfinite(value.z)||!std::isfinite(value.w))return false;
+  if(id==kInvalidEntity||property<3||property>16||!std::isfinite(t)||t<0||!std::isfinite(value.x)||!std::isfinite(value.y)||!std::isfinite(value.z)||!std::isfinite(value.w))return false;
   auto it=std::find_if(parameter_tracks_.begin(),parameter_tracks_.end(),[&](const auto&x){return x.entity==id&&x.property==property;});
   if(it==parameter_tracks_.end()){parameter_tracks_.push_back({id,property,{}});it=std::prev(parameter_tracks_.end());}
   it->keys[t]={t,value};duration_=std::max(duration_,t);return true;
@@ -46,6 +46,11 @@ bool Animation::evaluate(Scene&scene,double time)const{
       case 9: if(n->has_light)n->light.inner_cone=v.x; break;
       case 10: if(n->has_light)n->light.outer_cone=v.x; break;
       case 11: if(n->has_light)n->light.color={v.x,v.y,v.z}; break;
+      case 12: for(uint32_t meshIndex:n->mesh_indices) if(meshIndex<scene.meshes.size() && scene.meshes[meshIndex].material_index<scene.materials.size()) scene.materials[scene.meshes[meshIndex].material_index].base_color=v; break;
+      case 13: for(uint32_t meshIndex:n->mesh_indices) if(meshIndex<scene.meshes.size() && scene.meshes[meshIndex].material_index<scene.materials.size()) scene.materials[scene.meshes[meshIndex].material_index].metallic=std::clamp(v.x,0.0f,1.0f); break;
+      case 14: for(uint32_t meshIndex:n->mesh_indices) if(meshIndex<scene.meshes.size() && scene.meshes[meshIndex].material_index<scene.materials.size()) scene.materials[scene.meshes[meshIndex].material_index].roughness=std::clamp(v.x,0.045f,1.0f); break;
+      case 15: for(uint32_t meshIndex:n->mesh_indices) if(meshIndex<scene.meshes.size() && scene.meshes[meshIndex].material_index<scene.materials.size()) scene.materials[scene.meshes[meshIndex].material_index].normal_scale=v.x; break;
+      case 16: for(uint32_t meshIndex:n->mesh_indices) if(meshIndex<scene.meshes.size() && scene.meshes[meshIndex].material_index<scene.materials.size()) scene.materials[scene.meshes[meshIndex].material_index].occlusion=std::clamp(v.x,0.0f,1.0f); break;
       default: break;
     }
   }
