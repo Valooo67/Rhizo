@@ -31,8 +31,8 @@ echo "===== BUILD librhizo.so ====="
 cmake --build build-android --parallel 2
 echo
 echo "===== ABI / EXPORTED API CHECK ====="
-llvm-readelf -h build-android/librhizo.so | grep -E 'Class:|Machine:'
-llvm-nm -D --defined-only build-android/librhizo.so | grep ' rhizo_'
+readelf -h build-android/librhizo.so | grep -E 'Class:|Machine:'
+nm -D --defined-only build-android/librhizo.so | grep ' rhizo_'
 echo
 echo "===== BUILD OUTPUT ====="
 ls -lh build-android/librhizo.so
