@@ -32,9 +32,13 @@ cmake --build build-android --parallel 2
 echo
 echo "===== ABI / EXPORTED API CHECK ====="
 readelf -h build-android/librhizo.so | grep -E 'Class:|Machine:'
-nm -D --defined-only build-android/librhizo.so | grep ' rhizo_'
+for symbol in rhizo_get_abi_version rhizo_create rhizo_get_device_info rhizo_get_last_error rhizo_buffer_create rhizo_buffer_write rhizo_buffer_get_size rhizo_buffer_destroy rhizo_destroy; do
+  nm -D --defined-only build-android/librhizo.so | grep -q " ${symbol}$"
+  echo "exported: ${symbol}"
+done
 echo
 echo "===== BUILD OUTPUT ====="
 ls -lh build-android/librhizo.so
 file build-android/librhizo.so
+sha256sum build-android/librhizo.so
 echo "===== RHIZO CORE FOUNDATION: SUCCESS ====="
