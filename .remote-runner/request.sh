@@ -41,4 +41,4 @@ echo "===== BUILD OUTPUT ====="
 ls -lh build-android/librhizo.so
 file build-android/librhizo.so
 sha256sum build-android/librhizo.so
-echo "===== RHIZO CORE FOUNDATION: SUCCESS ====="
+echo "===== RHIZO SCENE + IMPORT FOUNDATION: SUCCESS ====="
