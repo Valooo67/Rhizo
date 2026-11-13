@@ -14,5 +14,5 @@ void main() {
     float sunDot = max(dot(direction, normalize(vec3(-0.42, 0.82, 0.31))), 0.0);
     sky += vec3(1.0, 0.78, 0.48) * (pow(sunDot, 420.0) * 5.0 + pow(sunDot, 18.0) * 0.16);
     if (direction.y < 0.0) sky = mix(sky, vec3(0.055, 0.052, 0.047), smoothstep(-0.55, -0.04, -direction.y));
-    outColor = vec4(pow(max(sky, vec3(0.0)), vec3(1.0 / 2.2)), 1.0);
+    outColor = vec4(pc.viewport.z > 0.5 ? max(sky, vec3(0.0)) : pow(max(sky, vec3(0.0)), vec3(1.0 / 2.2)), 1.0);
 }
