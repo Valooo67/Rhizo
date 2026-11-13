@@ -1,6 +1,6 @@
 #version 450
 layout(location=0) in vec3 inPosition;layout(location=1) in vec3 inNormal;layout(location=2) in vec4 inColor;layout(location=3) in vec4 inMaterial;layout(location=4) in vec2 inUv;layout(location=5) in vec4 inTangent;layout(location=6) in vec3 inEmissive;
-layout(location=7) in vec4 instanceColumn0;layout(location=8) in vec4 instanceColumn1;layout(location=9) in vec4 instanceColumn2;layout(location=10) in vec4 instanceColumn3;
+layout(location=9) in vec4 instanceColumn0;layout(location=10) in vec4 instanceColumn1;layout(location=11) in vec4 instanceColumn2;layout(location=12) in vec4 instanceColumn3;
 layout(push_constant) uniform DrawConstants { mat4 viewProjection;mat4 model; } pc;
 layout(location=0) out vec3 worldNormal;layout(location=1) out vec3 worldPosition;layout(location=2) out vec4 baseColor;layout(location=3) out vec4 materialData;layout(location=4) out vec2 uv;layout(location=5) out vec4 worldTangent;layout(location=6) out vec3 emissiveFactor;
 void main(){mat4 model=mat4(instanceColumn0,instanceColumn1,instanceColumn2,instanceColumn3);vec4 world=model*vec4(inPosition,1.0);worldPosition=world.xyz;worldNormal=normalize(transpose(inverse(mat3(model)))*inNormal);baseColor=inColor;materialData=inMaterial;uv=inUv;worldTangent=vec4(normalize(mat3(model)*inTangent.xyz),inTangent.w);emissiveFactor=inEmissive;gl_Position=pc.viewProjection*world;}
