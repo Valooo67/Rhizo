@@ -16,7 +16,7 @@ class Viewport final {
   ~Viewport();
   bool attach(VulkanContext&,ANativeWindow*,std::string&);
   bool render(float,float,float,float,std::string&);
-  bool render_scene(const Scene&,const Mat4&,uint32_t selected_entity,uint32_t gizmo_mode,std::string&);
+  bool render_scene(const Scene&,const Mat4&,uint32_t selected_entity,uint32_t gizmo_mode,std::string&,FrameTexture* opengl_frame=nullptr);
   void detach() noexcept;
   void set_render_settings(const RhizoRenderSettings& settings) noexcept { settings_ = settings; }
   uint32_t width()const{return extent_.width;}
@@ -47,6 +47,7 @@ class Viewport final {
   struct DrawItem { const Mesh* mesh=nullptr; Mat4 model=Mat4::identity(); uint32_t meshIndex=0; };
   std::vector<DrawItem> draw_items_;
   VkDescriptorSetLayout material_set_layout_=VK_NULL_HANDLE;
+  VkDescriptorSet frame_descriptor_set_=VK_NULL_HANDLE;
   VkDescriptorPool material_descriptor_pool_=VK_NULL_HANDLE;
   std::vector<MaterialGpuCache> material_cache_;
   std::array<std::unique_ptr<FrameTexture>,4> default_textures_;
@@ -86,7 +87,7 @@ class Viewport final {
   VkSemaphore acquired_=VK_NULL_HANDLE,finished_=VK_NULL_HANDLE;
   VkFence fence_=VK_NULL_HANDLE;
   std::vector<MeshGpuCache> mesh_cache_;
-  std::unique_ptr<GpuBuffer> grid_buffer_,gizmo_buffer_;
+  std::unique_ptr<GpuBuffer> grid_buffer_,gizmo_buffer_,frame_plane_vertices_,frame_plane_indices_;
   RhizoRenderSettings settings_{sizeof(RhizoRenderSettings),RHIZO_SHADOWS_MAPS,2048,0.0015f,0.01f,1.0f,1.0f,1.0f,1,1,1,1,{0,0,0,0}};
   std::array<float,4> clear_color_{{0.055f,0.065f,0.085f,1.0f}};
 };
