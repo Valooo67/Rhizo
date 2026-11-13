@@ -586,4 +586,19 @@ RhizoResult rhizo_texture_copy_pixels(const RhizoTexture*t,void*dst,uint64_t cap
  if(!t||!t->resource||!dst||capacity<t->resource->rgba.size())return RHIZO_ERROR_INVALID_ARGUMENT;std::memcpy(dst,t->resource->rgba.data(),t->resource->rgba.size());return RHIZO_SUCCESS;
 }
 void rhizo_texture_release(RhizoTexture*t){delete t;}
+
+RhizoResult rhizo_scene_component_set(RhizoContext*c,uint32_t entity,uint32_t type,const void*data,uint32_t size){
+ if(!c||!c->scene.get(entity)||type==0||size>(1u<<20)||(size&&data==nullptr))return RHIZO_ERROR_INVALID_ARGUMENT;
+ try{auto*set=c->scene.components.get<rhizo::CustomComponentSet>(entity);if(!set)set=&c->scene.components.emplace<rhizo::CustomComponentSet>(entity);auto&payload=set->values[type];payload.resize(size);if(size)std::memcpy(payload.data(),data,size);return RHIZO_SUCCESS;}catch(const std::bad_alloc&){return RHIZO_ERROR_OUT_OF_MEMORY;}
+}
+RhizoResult rhizo_scene_component_get(const RhizoContext*c,uint32_t entity,uint32_t type,void*data,uint32_t capacity,uint32_t*out_size){
+ if(!c||!out_size||type==0)return RHIZO_ERROR_INVALID_ARGUMENT;const auto*set=c->scene.components.get<rhizo::CustomComponentSet>(entity);if(!set)return RHIZO_ERROR_INVALID_ARGUMENT;auto i=set->values.find(type);if(i==set->values.end())return RHIZO_ERROR_INVALID_ARGUMENT;
+ *out_size=static_cast<uint32_t>(i->second.size());if(!data&&capacity==0)return RHIZO_SUCCESS;if(capacity<i->second.size()||(!data&&!i->second.empty()))return RHIZO_ERROR_INVALID_ARGUMENT;if(!i->second.empty())std::memcpy(data,i->second.data(),i->second.size());return RHIZO_SUCCESS;
+}
+RhizoResult rhizo_scene_component_remove(RhizoContext*c,uint32_t entity,uint32_t type){
+ if(!c||type==0)return RHIZO_ERROR_INVALID_ARGUMENT;auto*set=c->scene.components.get<rhizo::CustomComponentSet>(entity);if(!set||set->values.erase(type)==0)return RHIZO_ERROR_INVALID_ARGUMENT;if(set->values.empty())c->scene.components.remove<rhizo::CustomComponentSet>(entity);return RHIZO_SUCCESS;
+}
+uint8_t rhizo_scene_component_has(const RhizoContext*c,uint32_t entity,uint32_t type){
+ if(!c||type==0)return 0;const auto*set=c->scene.components.get<rhizo::CustomComponentSet>(entity);return set&&set->values.contains(type)?1u:0u;
+}
 }  // extern "C"
