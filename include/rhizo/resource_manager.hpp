@@ -32,7 +32,7 @@ class ResourceManager {
   size_t texture_cache_size()const{return textures_.size();}
   size_t model_cache_size()const{return models_.size();}
  private:
-  std::unordered_map<std::string,std::weak_ptr<const TextureResource>> textures_;
-  std::unordered_map<std::string,std::weak_ptr<const ModelResource>> models_;
+  std::unordered_map<std::string,std::shared_ptr<const TextureResource>> textures_;
+  std::unordered_map<std::string,std::shared_ptr<const ModelResource>> models_;
 };
 }
