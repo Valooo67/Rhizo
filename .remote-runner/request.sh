@@ -55,4 +55,4 @@ echo "===== BUILD OUTPUT ====="
 ls -lh build-android/librhizo.so
 file build-android/librhizo.so
 sha256sum build-android/librhizo.so
-echo "===== RHIZO ANIMATION CURVES + PLAYBACK + TIMELINE ABI: SUCCESS ====="
+echo "===== RHIZO ANIMATION CLIPS + CURVES + STATE MACHINE + IK + LOOKAT + CAMERA SHAKE ABI: SUCCESS ====="
