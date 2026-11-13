@@ -6,7 +6,9 @@
 #include "vulkan/frame_texture.hpp"
 #include "rhizo/scene.hpp"
 #include "rhizo/animation.hpp"
-#include "rhizo/model_importer.hpp"\n#include "rhizo/scene_io.hpp"\n#include "rhizo/resource_manager.hpp"
+#include "rhizo/model_importer.hpp"
+#include "rhizo/scene_io.hpp"
+#include "rhizo/resource_manager.hpp"
 #include "rhizo/shadow_map.hpp"
 #include "rhizo/editor_geometry.hpp"
 
@@ -28,7 +30,9 @@ struct RhizoContext {
   rhizo::Viewport viewport;
   std::string last_error;
   std::vector<RhizoBuffer*> buffers;
-  rhizo::Scene scene;\n  rhizo::AssetManager assets;\n  rhizo::ResourceManager resources;
+  rhizo::Scene scene;
+  rhizo::AssetManager assets;
+  rhizo::ResourceManager resources;
   rhizo::Animation animation;
   rhizo::AnimationPlayer animation_player;
   std::map<uint32_t,rhizo::Animation> animation_clips;
