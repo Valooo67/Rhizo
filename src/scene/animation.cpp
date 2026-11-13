@@ -18,7 +18,7 @@ bool Animation::set_key(EntityId id,TrackProperty p,double t,const Transform&v){
  it->keys[t]={t,v};duration_=std::max(duration_,t);return true;
 }
 bool Animation::set_parameter_key(EntityId id,uint32_t property,double t,Vec4 value){
- if(id==kInvalidEntity||property<3||property>272||!std::isfinite(t)||t<0)return false;
+ if(id==kInvalidEntity||property<3||property>48||!std::isfinite(t)||t<0)return false;
  if(!std::isfinite(value.x)||!std::isfinite(value.y)||!std::isfinite(value.z)||!std::isfinite(value.w))return false;
  auto it=std::find_if(parameter_tracks_.begin(),parameter_tracks_.end(),[&](const auto&x){return x.entity==id&&x.property==property;});
  if(it==parameter_tracks_.end()){parameter_tracks_.push_back({id,property,Interpolation::Linear,{}});it=std::prev(parameter_tracks_.end());}
@@ -53,7 +53,7 @@ bool Animation::evaluate(Scene&scene,double time)const{
    case 14:for(uint32_t i:n->mesh_indices)if(i<scene.meshes.size()&&scene.meshes[i].material_index<scene.materials.size())scene.materials[scene.meshes[i].material_index].roughness=std::clamp(v.x,0.045f,1.0f);break;
    case 15:for(uint32_t i:n->mesh_indices)if(i<scene.meshes.size()&&scene.meshes[i].material_index<scene.materials.size())scene.materials[scene.meshes[i].material_index].normal_scale=v.x;break;
    case 16:for(uint32_t i:n->mesh_indices)if(i<scene.meshes.size()&&scene.meshes[i].material_index<scene.materials.size())scene.materials[scene.meshes[i].material_index].occlusion=std::clamp(v.x,0.0f,1.0f);break;
-   default:break;
+   default:if(track.property>=17&&track.property<49){const size_t morph=track.property-17;if(n->morph_weights.size()<=morph)n->morph_weights.resize(morph+1,0.0f);n->morph_weights[morph]=std::clamp(v.x,-1.0f,1.0f);}break;
   }
  }
  return true;
