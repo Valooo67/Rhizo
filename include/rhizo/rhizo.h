@@ -16,6 +16,7 @@ extern "C" {
 #define RHIZO_ABI_VERSION 1u
 typedef struct RhizoContext RhizoContext;
 typedef struct RhizoBuffer RhizoBuffer;
+typedef struct RhizoTexture RhizoTexture;
 typedef enum RhizoResult {
   RHIZO_SUCCESS=0, RHIZO_ERROR_INVALID_ARGUMENT=1, RHIZO_ERROR_OUT_OF_MEMORY=2,
   RHIZO_ERROR_VULKAN=3, RHIZO_ERROR_UNSUPPORTED_DEVICE=4, RHIZO_ERROR_INTERNAL=5
@@ -172,6 +173,10 @@ RHIZO_API RhizoResult rhizo_assets_get(const RhizoContext*,uint32_t,RhizoAssetIn
 RHIZO_API void rhizo_resources_collect(RhizoContext*);
 RHIZO_API void rhizo_resources_clear(RhizoContext*);
 RHIZO_API RhizoResult rhizo_resources_get_stats(const RhizoContext*,RhizoResourceStats*);
+RHIZO_API RhizoResult rhizo_texture_load(RhizoContext*,const char*,RhizoTexture**);
+RHIZO_API RhizoResult rhizo_texture_get_info(const RhizoTexture*,uint32_t*,uint32_t*,uint64_t*);
+RHIZO_API RhizoResult rhizo_texture_copy_pixels(const RhizoTexture*,void*,uint64_t);
+RHIZO_API void rhizo_texture_release(RhizoTexture*);
 #ifdef __cplusplus
 }
 #endif
