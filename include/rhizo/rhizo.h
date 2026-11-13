@@ -62,6 +62,18 @@ typedef struct RhizoCameraInfo { uint32_t struct_size; float vertical_fov,near_p
 typedef struct RhizoLightInfo { uint32_t struct_size,type; float color[3],intensity,range,inner_cone,outer_cone; uint8_t casts_shadows,reserved[3]; } RhizoLightInfo;
 typedef struct RhizoShadowMapInfo { uint32_t struct_size,width,height,format; } RhizoShadowMapInfo;
 typedef struct RhizoEditorVertex { float position[3],color[4]; } RhizoEditorVertex;
+typedef enum RhizoShadowMode { RHIZO_SHADOWS_DISABLED=0, RHIZO_SHADOWS_MAPS=1 } RhizoShadowMode;
+typedef struct RhizoRenderSettings {
+ uint32_t struct_size,shadow_mode,shadow_resolution;
+ float shadow_bias,shadow_normal_bias,exposure,environment_intensity,render_scale;
+ uint8_t enable_pbr,enable_textures,enable_vsync,enable_backface_culling,reserved[4];
+} RhizoRenderSettings;
+typedef struct RhizoOpenGLFrameInfo {
+ uint32_t struct_size,width,height,stride_bytes;
+ uint64_t frame_index,timestamp_ns;
+ uint32_t pixel_format,reserved;
+} RhizoOpenGLFrameInfo;
+enum { RHIZO_FRAME_RGBA8=1u, RHIZO_FRAME_BGRA8=2u };
 typedef struct RhizoMaterialInfo {
   uint32_t struct_size;
   float base_color[4],metallic,roughness;
@@ -74,6 +86,10 @@ RHIZO_API RhizoResult rhizo_get_device_info(const RhizoContext*,RhizoDeviceInfo*
 RHIZO_API RhizoResult rhizo_viewport_attach(RhizoContext*,void* native_window);
 RHIZO_API RhizoResult rhizo_viewport_render(RhizoContext*,float red,float green,float blue,float alpha);
 RHIZO_API RhizoResult rhizo_viewport_render_scene(RhizoContext*,const float view_projection[16]);
+RHIZO_API RhizoResult rhizo_render_settings_set(RhizoContext*,const RhizoRenderSettings*);
+RHIZO_API RhizoResult rhizo_render_settings_get(const RhizoContext*,RhizoRenderSettings*);
+RHIZO_API RhizoResult rhizo_opengl_submit_frame(RhizoContext*,const RhizoOpenGLFrameInfo*,const void*,uint64_t);
+RHIZO_API RhizoResult rhizo_opengl_get_latest_frame(const RhizoContext*,RhizoOpenGLFrameInfo*,const void**,uint64_t*);
 RHIZO_API void rhizo_viewport_detach(RhizoContext*);
 RHIZO_API const char* rhizo_get_last_error(const RhizoContext*);
 RHIZO_API RhizoResult rhizo_buffer_create(RhizoContext*,const RhizoBufferCreateInfo*,RhizoBuffer**);
