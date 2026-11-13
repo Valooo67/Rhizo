@@ -16,7 +16,7 @@
 #include <cstring>
 #include <memory>
 #include <new>
-#include <string>
+#include <string>\n#include <unordered_map>
 #include <vector>
 
 struct RhizoBuffer;
@@ -27,7 +27,7 @@ struct RhizoContext {
   std::string last_error;
   std::vector<RhizoBuffer*> buffers;
   rhizo::Scene scene;
-  rhizo::Animation animation;\n  rhizo::AnimationPlayer animation_player;
+  rhizo::Animation animation;\n  rhizo::AnimationPlayer animation_player;\n  std::unordered_map<uint32_t,rhizo::Vec3> camera_shake_origins;
   uint32_t selected_entity=0,gizmo_mode=RHIZO_GIZMO_TRANSLATE;
   std::unique_ptr<rhizo::ShadowMap> shadow_map;
   RhizoRenderSettings render_settings{sizeof(RhizoRenderSettings),RHIZO_SHADOWS_MAPS,2048,0.0015f,0.01f,1.0f,1.0f,1.0f,1,1,1,1,{0,0,0,0}};
@@ -480,6 +480,21 @@ RhizoResult rhizo_animation_set_mode(RhizoContext*c,uint32_t mode){if(!c||mode>2
 RhizoResult rhizo_animation_tick(RhizoContext*c,double delta){if(!c||!std::isfinite(delta)||delta<0||delta>1.0)return RHIZO_ERROR_INVALID_ARGUMENT;c->animation_player.bind(&c->animation);return c->animation_player.tick(c->scene,delta)?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;}
 double rhizo_animation_get_time(const RhizoContext*c){return c?c->animation_player.time():0.0;}
 uint32_t rhizo_animation_get_key_count(const RhizoContext*c){return c?static_cast<uint32_t>(c->animation.key_count()):0;}
+\n
+RhizoResult rhizo_scene_look_at(RhizoContext*c,uint32_t entity,uint32_t target,float weight){
+ if(!c||!std::isfinite(weight))return RHIZO_ERROR_INVALID_ARGUMENT;return rhizo::solve_look_at(c->scene,entity,target,weight)?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;
+}
+RhizoResult rhizo_scene_solve_two_bone_ik(RhizoContext*c,uint32_t root,uint32_t middle,uint32_t end,const float target[3],const float pole[3],float weight){
+ if(!c||!target||!pole||!std::isfinite(weight))return RHIZO_ERROR_INVALID_ARGUMENT;for(float v:{target[0],target[1],target[2],pole[0],pole[1],pole[2]})if(!std::isfinite(v))return RHIZO_ERROR_INVALID_ARGUMENT;
+ return rhizo::solve_two_bone_ik(c->scene,root,middle,end,{target[0],target[1],target[2]},{pole[0],pole[1],pole[2]},weight)?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;
+}
+RhizoResult rhizo_camera_shake(RhizoContext*c,uint32_t entity,double time,float amplitude,float frequency){
+ if(!c||!std::isfinite(time)||time<0||!std::isfinite(amplitude)||!std::isfinite(frequency)||amplitude<0||amplitude>10||frequency<0||frequency>100)return RHIZO_ERROR_INVALID_ARGUMENT;
+ auto*n=c->scene.get(entity);if(!n||!n->has_camera)return RHIZO_ERROR_INVALID_ARGUMENT;auto it=c->camera_shake_origins.find(entity);if(it==c->camera_shake_origins.end())it=c->camera_shake_origins.emplace(entity,n->local.position).first;const double phase=time*static_cast<double>(frequency)*6.283185307179586;const float a=amplitude;n->local.position=it->second+rhizo::Vec3{static_cast<float>(std::sin(phase*1.13))*a,static_cast<float>(std::sin(phase*1.71+1.2))*a*0.65f,static_cast<float>(std::cos(phase*0.83+0.4))*a*0.45f};return RHIZO_SUCCESS;
+}
+RhizoResult rhizo_camera_shake_clear(RhizoContext*c,uint32_t entity){
+ if(!c)return RHIZO_ERROR_INVALID_ARGUMENT;auto it=c->camera_shake_origins.find(entity);auto*n=c->scene.get(entity);if(it==c->camera_shake_origins.end()||!n)return RHIZO_ERROR_INVALID_ARGUMENT;n->local.position=it->second;c->camera_shake_origins.erase(it);return RHIZO_SUCCESS;
+}
 \nRhizoResult rhizo_scene_set_material_info(RhizoContext*c,uint32_t i,const RhizoMaterialInfo*in){
  constexpr size_t legacySize=offsetof(RhizoMaterialInfo,normal_scale);
  if(!c||!in||in->struct_size<legacySize||i>=c->scene.materials.size())return RHIZO_ERROR_INVALID_ARGUMENT;
