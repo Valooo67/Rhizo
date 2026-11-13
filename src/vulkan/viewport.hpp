@@ -50,7 +50,7 @@ class Viewport final {
   struct DrawItem { const Mesh* mesh=nullptr; Mat4 model=Mat4::identity(); uint32_t meshIndex=0; EntityId entity=0; VkDescriptorSet skin_descriptor=VK_NULL_HANDLE,morph_descriptor=VK_NULL_HANDLE; bool skinned=false,morphed=false; };
   struct SkinGpuCache { EntityId entity=0; uint32_t mesh_index=0,bone_count=0; std::unique_ptr<GpuBuffer> matrices; VkDescriptorSet descriptor=VK_NULL_HANDLE; };
   std::vector<SkinGpuCache> skin_cache_;
-  struct MorphGpuCache { EntityId entity=0; uint32_t mesh_index=0,vertex_count=0,target_count=0; bool data_uploaded=false; std::unique_ptr<GpuBuffer> data; VkDescriptorSet descriptor=VK_NULL_HANDLE; };
+  struct MorphGpuCache { EntityId entity=0; uint32_t mesh_index=0,vertex_count=0,target_count=0; const MorphTarget* source_targets=nullptr; bool data_uploaded=false; std::unique_ptr<GpuBuffer> data; VkDescriptorSet descriptor=VK_NULL_HANDLE; };
   std::vector<MorphGpuCache> morph_cache_;
   std::vector<DrawItem> draw_items_;
   std::vector<std::array<std::vector<Mat4>,3>> instance_batches_;
