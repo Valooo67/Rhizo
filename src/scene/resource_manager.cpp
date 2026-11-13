@@ -22,15 +22,15 @@ bool AssetManager::scan(const std::string&root,std::string&error){
 const AssetRecord*AssetManager::find(uint64_t id)const{auto i=by_id_.find(id);return i==by_id_.end()?nullptr:&assets_[i->second];}
 const AssetRecord*AssetManager::find_path(const std::string&p)const{auto i=by_path_.find(normalized(p));return i==by_path_.end()?nullptr:&assets_[i->second];}
 std::shared_ptr<const TextureResource>ResourceManager::load_texture(const std::string&path,std::string&error){
- const std::string key=normalized(path);auto i=textures_.find(key);if(i!=textures_.end())if(auto cached=i->second.lock())return cached;
+ const std::string key=normalized(path);auto i=textures_.find(key);if(i!=textures_.end())return i->second;
  auto value=std::make_shared<TextureResource>();value->source=key;if(!decode_image_rgba8(key,value->rgba,value->width,value->height,error))return {};
  textures_[key]=value;return value;
 }
 std::shared_ptr<const ModelResource>ResourceManager::load_model(const std::string&path,const std::string&cache,std::string&error){
- const std::string key=normalized(path);auto i=models_.find(key);if(i!=models_.end())if(auto cached=i->second.lock())return cached;
+ const std::string key=normalized(path);auto i=models_.find(key);if(i!=models_.end())return i->second;
  auto value=std::make_shared<ModelResource>();value->source=key;ImportReport report;if(!import_model(value->scene,key,cache,report,error))return {};
  models_[key]=value;return value;
 }
-void ResourceManager::collect_unused(){for(auto i=textures_.begin();i!=textures_.end();)if(i->second.expired())i=textures_.erase(i);else ++i;for(auto i=models_.begin();i!=models_.end();)if(i->second.expired())i=models_.erase(i);else ++i;}
+void ResourceManager::collect_unused(){for(auto i=textures_.begin();i!=textures_.end();)if(i->second.use_count()==1)i=textures_.erase(i);else ++i;for(auto i=models_.begin();i!=models_.end();)if(i->second.use_count()==1)i=models_.erase(i);else ++i;}
 void ResourceManager::clear(){textures_.clear();models_.clear();}
 }
