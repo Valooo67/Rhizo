@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <string>
 #include <vector>
-#include <unordered_map>
+#include <unordered_map>\n#include "rhizo/components.hpp"
 
 namespace rhizo {
 using EntityId=uint32_t;
@@ -44,7 +44,7 @@ class Scene {
   const SceneNode* get(EntityId id) const;
   bool set_parent(EntityId id,EntityId parent);
   Mat4 world_matrix(EntityId id) const;
-  std::vector<EntityId> roots() const;
+  std::vector<EntityId> roots() const;\n  void clear();\n  ComponentRegistry components;
   std::vector<SceneNode>& nodes(){return nodes_;}
   const std::vector<SceneNode>& nodes()const{return nodes_;}
   std::vector<Mesh> meshes;
