@@ -16,7 +16,7 @@
 namespace fs=std::filesystem;
 namespace rhizo {
 namespace {
-uint16_t u16(const std::vector<unsigned char>&b,size_t p){return uint16_t(b[p])|uint16_t(b[p+1])<<8;}
+uint16_t u16(const std::vector<unsigned char>&b,size_t p){return static_cast<uint16_t>(uint16_t(b[p])|static_cast<uint16_t>(uint16_t(b[p+1])<<8));}
 uint32_t u32(const std::vector<unsigned char>&b,size_t p){return uint32_t(b[p])|uint32_t(b[p+1])<<8|uint32_t(b[p+2])<<16|uint32_t(b[p+3])<<24;}
 bool safe_name(const std::string&s){if(s.empty()||s[0]=='/'||s.find('\\')!=std::string::npos)return false;fs::path p(s);for(const auto&c:p)if(c=="..")return false;return true;}
 bool extract_zip(const fs::path&zip,const fs::path&dest,std::string&error){

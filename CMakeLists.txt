@@ -46,5 +46,5 @@ target_link_libraries(rhizo PRIVATE ${ANDROID_VULKAN_LIBRARY} ${ANDROID_Z_LIBRAR
 if(ANDROID_LOG_LIBRARY)
  target_link_libraries(rhizo PRIVATE ${ANDROID_LOG_LIBRARY})
 endif()
-target_compile_options(rhizo PRIVATE -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wno-unused-parameter)
+target_compile_options(rhizo PRIVATE -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wno-unused-parameter -Wno-missing-field-initializers)
 target_compile_definitions(rhizo PRIVATE VK_USE_PLATFORM_ANDROID_KHR=1 RHIZO_BUILDING_LIBRARY=1)

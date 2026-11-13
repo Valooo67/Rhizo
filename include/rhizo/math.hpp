@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <array>
 #include <algorithm>
+#include <cstddef>
 
 namespace rhizo {
 struct Vec2 { float x=0, y=0; };
@@ -35,7 +36,7 @@ struct Mat4 {
 };
 inline Mat4 multiply(const Mat4&a,const Mat4&b){
   Mat4 o{};
-  for(int c=0;c<4;c++)for(int r=0;r<4;r++)for(int k=0;k<4;k++)o.v[c*4+r]+=a.v[k*4+r]*b.v[c*4+k];
+  for(size_t c=0;c<4u;c++)for(size_t r=0;r<4u;r++)for(size_t k=0;k<4u;k++)o.v[c*4u+r]+=a.v[k*4u+r]*b.v[c*4u+k];
   return o;
 }
 inline Mat4 compose(Vec3 p,Quat q,Vec3 s){
