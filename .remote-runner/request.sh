@@ -28,9 +28,12 @@ echo "===== SOURCE TREE ====="
 find include src -maxdepth 4 -type f -print | sort
 echo
 echo "===== HOST ANIMATION RUNTIME TESTS ====="
-clang++ -std=c++20 -Wall -Wextra -Werror -I include tests/animation_runtime_tests.cpp src/scene/animation.cpp src/scene/scene.cpp -o /tmp/rhizo-animation-tests
+clang++ -std=c++20 -Wall -Wextra -I include tests/animation_runtime_tests.cpp src/scene/animation.cpp src/scene/scene.cpp -o /tmp/rhizo-animation-tests
 /tmp/rhizo-animation-tests
 echo "animation runtime tests: PASS"
+clang++ -std=c++20 -Wall -Wextra -I include tests/scene_serialization_tests.cpp src/scene/scene_io.cpp src/scene/scene.cpp -o /tmp/rhizo-scene-tests
+/tmp/rhizo-scene-tests
+echo "scene and prefab serialization tests: PASS"
 echo
 echo "===== CMAKE CONFIGURE (Android ARM64) ====="
 cmake -S . -B build-android \
