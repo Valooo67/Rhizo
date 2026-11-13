@@ -89,6 +89,7 @@ RHIZO_API RhizoResult rhizo_viewport_render_scene(RhizoContext*,const float view
 RHIZO_API RhizoResult rhizo_render_settings_set(RhizoContext*,const RhizoRenderSettings*);
 RHIZO_API RhizoResult rhizo_render_settings_get(const RhizoContext*,RhizoRenderSettings*);
 RHIZO_API RhizoResult rhizo_opengl_submit_frame(RhizoContext*,const RhizoOpenGLFrameInfo*,const void*,uint64_t);
+RHIZO_API RhizoResult rhizo_opengl_get_latest_texture(const RhizoContext*,uint64_t*,uint64_t*,uint32_t*,uint32_t*);
 RHIZO_API RhizoResult rhizo_opengl_get_latest_frame(const RhizoContext*,RhizoOpenGLFrameInfo*,const void**,uint64_t*);
 RHIZO_API void rhizo_viewport_detach(RhizoContext*);
 RHIZO_API const char* rhizo_get_last_error(const RhizoContext*);

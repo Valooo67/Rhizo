@@ -3,6 +3,7 @@
 #include "vulkan/gpu_buffer.hpp"
 #include "vulkan/vulkan_context.hpp"
 #include "vulkan/viewport.hpp"
+#include "vulkan/frame_texture.hpp"
 #include "rhizo/scene.hpp"
 #include "rhizo/animation.hpp"
 #include "rhizo/model_importer.hpp"
@@ -31,6 +32,7 @@ struct RhizoContext {
   std::vector<uint8_t> opengl_frame;
   RhizoOpenGLFrameInfo opengl_frame_info{sizeof(RhizoOpenGLFrameInfo),0,0,0,0,0,RHIZO_FRAME_RGBA8,0};
   std::unique_ptr<rhizo::GpuBuffer> opengl_frame_gpu;
+  std::unique_ptr<rhizo::FrameTexture> opengl_frame_texture;
 };
 
 struct RhizoBuffer {
@@ -253,15 +255,23 @@ RhizoResult rhizo_opengl_submit_frame(RhizoContext*c,const RhizoOpenGLFrameInfo*
  if(!c||!i||!p||i->struct_size<sizeof(RhizoOpenGLFrameInfo)||!i->width||!i->height||i->width>16384||i->height>16384||
  (i->pixel_format!=RHIZO_FRAME_RGBA8&&i->pixel_format!=RHIZO_FRAME_BGRA8))return RHIZO_ERROR_INVALID_ARGUMENT;
  const uint64_t row=uint64_t(i->width)*4u;
- if(i->stride_bytes<row||uint64_t(i->stride_bytes)>uint64_t(i->width)*16u||uint64_t(i->stride_bytes)>UINT64_MAX/i->height||
+ if(i->stride_bytes<row||(i->stride_bytes%4u)!=0||uint64_t(i->stride_bytes)>uint64_t(i->width)*16u||uint64_t(i->stride_bytes)>UINT64_MAX/i->height||
  bytes<uint64_t(i->stride_bytes)*i->height||bytes>512ull*1024ull*1024ull||bytes>SIZE_MAX)return RHIZO_ERROR_INVALID_ARGUMENT;
  try{
   std::vector<uint8_t> staging(static_cast<size_t>(bytes));std::memcpy(staging.data(),p,static_cast<size_t>(bytes));
   auto gpu=std::make_unique<rhizo::GpuBuffer>();std::string error;
   if(!gpu->create(c->vulkan,static_cast<VkDeviceSize>(bytes),VK_BUFFER_USAGE_STORAGE_BUFFER_BIT|VK_BUFFER_USAGE_TRANSFER_SRC_BIT,true,error)||
      !gpu->write(0,staging.data(),static_cast<VkDeviceSize>(bytes),error)){c->last_error=std::move(error);return RHIZO_ERROR_VULKAN;}
-  c->opengl_frame.swap(staging);c->opengl_frame_info=*i;c->opengl_frame_gpu=std::move(gpu);return RHIZO_SUCCESS;
+  auto texture=std::make_unique<rhizo::FrameTexture>();
+  if(!texture->upload(c->vulkan,gpu->handle(),i->width,i->height,i->stride_bytes,i->pixel_format==RHIZO_FRAME_BGRA8,error)){c->last_error=std::move(error);return RHIZO_ERROR_VULKAN;}
+  c->opengl_frame.swap(staging);c->opengl_frame_info=*i;c->opengl_frame_gpu=std::move(gpu);c->opengl_frame_texture=std::move(texture);return RHIZO_SUCCESS;
  }catch(...){c->last_error="OpenGL frame upload allocation failed";return RHIZO_ERROR_OUT_OF_MEMORY;}
+}
+RhizoResult rhizo_opengl_get_latest_texture(const RhizoContext*c,uint64_t*view,uint64_t*sampler,uint32_t*w,uint32_t*h){
+ if(!c||!view||!sampler||!w||!h||!c->opengl_frame_texture)return RHIZO_ERROR_INVALID_ARGUMENT;
+ *view=static_cast<uint64_t>(reinterpret_cast<uintptr_t>(c->opengl_frame_texture->view()));
+ *sampler=static_cast<uint64_t>(reinterpret_cast<uintptr_t>(c->opengl_frame_texture->sampler()));
+ *w=c->opengl_frame_texture->width();*h=c->opengl_frame_texture->height();return RHIZO_SUCCESS;
 }
 RhizoResult rhizo_opengl_get_latest_frame(const RhizoContext*c,RhizoOpenGLFrameInfo*i,const void**p,uint64_t*n){
  if(!c||!i||!p||!n||i->struct_size<sizeof(RhizoOpenGLFrameInfo)||c->opengl_frame.empty())return RHIZO_ERROR_INVALID_ARGUMENT;
