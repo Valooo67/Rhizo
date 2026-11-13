@@ -12,6 +12,7 @@
 namespace rhizo {
 namespace {
 struct RenderVertex { float p[3],n[3],color[4],material[4],uv[2],tangent[4]={1,0,0,1},emissive[3]={0,0,0}; uint32_t boneIndices[4]{}; float boneWeights[4]{}; };
+struct alignas(16) MorphHeader { uint32_t vertexCount=0,targetCount=0,pad0=0,pad1=0; Vec4 weights[32]{}; };
 struct alignas(16) GpuLight { float position_type[4],direction_range[4],color_intensity[4],cone_shadow[4]; };
 struct alignas(16) GpuScene { float camera[4],ambient_exposure[4],shadow_vp[10][16]; int32_t counts[4]; float render_settings[4],shadow_settings[4],environment_settings[4]; GpuLight lights[8]; };
 struct SkyPush { float inverse_view_projection[16],camera[4],viewport[4]; };
