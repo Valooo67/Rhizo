@@ -61,15 +61,27 @@ bool read_scene(Scene&out,const std::string&p,std::string&err){
 }
 void collect(const Scene&s,EntityId id,std::vector<EntityId>&out){const auto*n=s.get(id);if(!n)return;out.push_back(id);for(EntityId c:n->children)collect(s,c,out);}
 }}
-bool save_scene(const Scene&s,const std::string&p,std::string&e){std::vector<EntityId>ids;ids.reserve(s.nodes().size());for(const auto&n:s.nodes())ids.push_back(n.id);if(!write_scene(s,p,ids)){e="Failed to write scene file";return false;}return true;}
+bool save_scene(const Scene&s,const std::string&p,std::string&e){if(s.nodes().size()>kMaxNodes||s.meshes.size()>kMaxMeshes||s.materials.size()>kMaxMeshes){e="Scene exceeds supported serialization limits";return false;}std::vector<EntityId>ids;ids.reserve(s.nodes().size());for(const auto&n:s.nodes())ids.push_back(n.id);if(!write_scene(s,p,ids)){e="Failed to write scene file";return false;}return true;}
 bool load_scene(Scene&s,const std::string&p,std::string&e){return read_scene(s,p,e);}
 bool save_prefab(const Scene&s,EntityId root,const std::string&p,std::string&e){if(!s.get(root)){e="Prefab root entity does not exist";return false;}std::vector<EntityId>ids;collect(s,root,ids);if(!write_scene(s,p,ids)){e="Failed to write prefab";return false;}return true;}
 bool instantiate_prefab(Scene&s,const std::string&p,EntityId parent,EntityId&root,std::string&e){
- if(parent&&!s.get(parent)){e="Prefab parent entity does not exist";return false;}Scene prefab;if(!read_scene(prefab,p,e))return false;
- const uint32_t meshBase=static_cast<uint32_t>(s.meshes.size()),materialBase=static_cast<uint32_t>(s.materials.size());
- for(auto&m:prefab.materials)s.materials.push_back(std::move(m));for(auto&m:prefab.meshes){if(m.material_index<prefab.materials.size())m.material_index+=materialBase;s.meshes.push_back(std::move(m));}
- std::unordered_map<EntityId,EntityId>map;for(const auto&n:prefab.nodes()){EntityId id=s.create(n.name);if(!id){e="Failed to create prefab entity";return false;}map[n.id]=id;}
- root=0;for(const auto&n:prefab.nodes()){auto*dst=s.get(map[n.id]);dst->local=n.local;dst->visible=n.visible;dst->has_camera=n.has_camera;dst->camera=n.camera;dst->has_light=n.has_light;dst->light=n.light;for(uint32_t m:n.mesh_indices)dst->mesh_indices.push_back(meshBase+m);if(n.parent){auto it=map.find(n.parent);if(it==map.end()||!s.set_parent(dst->id,it->second)){e="Prefab hierarchy is invalid";return false;}}else{if(!root)root=dst->id;if(parent&&!s.set_parent(dst->id,parent)){e="Could not attach prefab root";return false;}}}
- return root!=0;
+ if(parent&&!s.get(parent)){e="Prefab parent entity does not exist";return false;}
+ Scene prefab;if(!read_scene(prefab,p,e))return false;
+ Scene merged=s;
+ const uint32_t meshBase=static_cast<uint32_t>(merged.meshes.size()),materialBase=static_cast<uint32_t>(merged.materials.size());
+ for(const auto&m:prefab.materials)merged.materials.push_back(m);
+ for(auto m:prefab.meshes){if(m.material_index<prefab.materials.size())m.material_index+=materialBase;merged.meshes.push_back(std::move(m));}
+ std::unordered_map<EntityId,EntityId>map;
+ for(const auto&n:prefab.nodes()){EntityId id=merged.create(n.name);if(!id){e="Failed to create prefab entity";return false;}map[n.id]=id;}
+ EntityId newRoot=0;
+ for(const auto&n:prefab.nodes()){
+  auto*dst=merged.get(map[n.id]);if(!dst){e="Prefab entity mapping is invalid";return false;}
+  dst->local=n.local;dst->visible=n.visible;dst->has_camera=n.has_camera;dst->camera=n.camera;dst->has_light=n.has_light;dst->light=n.light;
+  for(uint32_t m:n.mesh_indices)dst->mesh_indices.push_back(meshBase+m);
+  if(n.parent){auto it=map.find(n.parent);if(it==map.end()||!merged.set_parent(dst->id,it->second)){e="Prefab hierarchy is invalid";return false;}}
+  else{if(!newRoot)newRoot=dst->id;if(parent&&!merged.set_parent(dst->id,parent)){e="Could not attach prefab root";return false;}}
+ }
+ if(!newRoot){e="Prefab has no root entity";return false;}
+ s=std::move(merged);root=newRoot;return true;
 }
 }
