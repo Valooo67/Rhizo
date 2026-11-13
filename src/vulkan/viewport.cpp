@@ -93,9 +93,9 @@ bool Viewport::render(float red,float green,float blue,float alpha,std::string&e
  clear_color_={std::clamp(red,0.0f,1.0f),std::clamp(green,0.0f,1.0f),std::clamp(blue,0.0f,1.0f),std::clamp(alpha,0.0f,1.0f)};
  const Mat4 view=look_at({8.0f,7.0f,10.0f},{0,0,0},{0,1,0});
  const Mat4 projection=perspective(0.785398163f,static_cast<float>(extent_.width)/static_cast<float>(std::max(1u,extent_.height)),0.1f,1000.0f);
- return render_scene(Scene{},multiply(projection,view),e);
+ return render_scene(Scene{},multiply(projection,view),0,RHIZO_GIZMO_TRANSLATE,e);
 }
-bool Viewport::render_scene(const Scene&scene,const Mat4&viewProjection,std::string&e){
+bool Viewport::render_scene(const Scene&scene,const Mat4&viewProjection,uint32_t selectedEntity,uint32_t gizmoMode,std::string&e){
  if(!context_||!swapchain_||!command_){e="Viewport is not attached";return false;}
  VkDevice d=context_->device();VkResult r=vkWaitForFences(d,1,&fence_,VK_TRUE,UINT64_MAX);if(r!=VK_SUCCESS){e="Viewport fence wait failed";return false;}
  transient_buffers_.clear();
@@ -124,7 +124,8 @@ bool Viewport::render_scene(const Scene&scene,const Mat4&viewProjection,std::str
  }}
  // Editor grid and origin gizmo are real line geometry in the same depth-aware viewport.
  auto drawLines=[&](const EditorGeometry&g,const Mat4&model){if(g.vertices.empty())return;std::vector<RenderVertex> v;v.reserve(g.vertices.size());for(const auto&x:g.vertices)v.push_back({{x.position.x,x.position.y,x.position.z},{0,0,1},{x.color.x,x.color.y,x.color.z,x.color.w},{0,1}});VkBuffer b=upload(v.data(),static_cast<VkDeviceSize>(v.size()*sizeof(RenderVertex)),VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);if(!b)return;vkCmdBindPipeline(command_,VK_PIPELINE_BIND_POINT_GRAPHICS,line_pipeline_);VkDeviceSize off=0;vkCmdBindVertexBuffers(command_,0,1,&b,&off);DrawPush push{};std::memcpy(push.vp,viewProjection.data(),64);std::memcpy(push.model,model.data(),64);push.settings[0]=settings_.exposure;push.settings[1]=settings_.environment_intensity;push.settings[2]=settings_.enable_pbr?1.0f:0.0f;push.settings[3]=settings_.enable_textures?1.0f:0.0f;vkCmdPushConstants(command_,pipeline_layout_,VK_SHADER_STAGE_VERTEX_BIT|VK_SHADER_STAGE_FRAGMENT_BIT,0,sizeof(push),&push);vkCmdDraw(command_,static_cast<uint32_t>(v.size()),1,0,0);};
- drawLines(make_grid(10.0f,20),Mat4::identity());drawLines(make_transform_gizmo({0,0,0},1.25f),Mat4::identity());
+ drawLines(make_grid(10.0f,20),Mat4::identity());
+ if(selectedEntity!=0u){const SceneNode* selected=scene.get(selectedEntity);if(selected&&selected->visible)drawLines(make_transform_gizmo({0,0,0},1.25f,gizmoMode),scene.world_matrix(selectedEntity));}
  vkCmdEndRenderPass(command_);r=vkEndCommandBuffer(command_);if(r!=VK_SUCCESS){e="Viewport command end failed";return false;}
  VkPipelineStageFlags wait=VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;VkSubmitInfo si{VK_STRUCTURE_TYPE_SUBMIT_INFO};si.waitSemaphoreCount=1;si.pWaitSemaphores=&acquired_;si.pWaitDstStageMask=&wait;si.commandBufferCount=1;si.pCommandBuffers=&command_;si.signalSemaphoreCount=1;si.pSignalSemaphores=&finished_;r=vkQueueSubmit(context_->graphics_queue(),1,&si,fence_);if(r!=VK_SUCCESS){e="Viewport queue submit failed: "+std::to_string(r);return false;}
  VkPresentInfoKHR pi{VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};pi.waitSemaphoreCount=1;pi.pWaitSemaphores=&finished_;pi.swapchainCount=1;pi.pSwapchains=&swapchain_;pi.pImageIndices=&index;r=vkQueuePresentKHR(context_->graphics_queue(),&pi);if(r!=VK_SUCCESS&&r!=VK_SUBOPTIMAL_KHR){e="vkQueuePresentKHR failed: "+std::to_string(r);return false;}return true;

@@ -120,7 +120,7 @@ RhizoResult rhizo_viewport_render(RhizoContext* context, float r, float g, float
   return RHIZO_SUCCESS;
 }
 
-RhizoResult rhizo_viewport_render_scene(RhizoContext* context,const float vp[16]) { if(!context||!vp)return RHIZO_ERROR_INVALID_ARGUMENT; rhizo::Mat4 matrix{}; std::copy(vp,vp+16,matrix.v.begin()); context->viewport.set_render_settings(context->render_settings); std::string error; if(!context->viewport.render_scene(context->scene,matrix,error)){context->last_error=std::move(error);return RHIZO_ERROR_VULKAN;} return RHIZO_SUCCESS; }
+RhizoResult rhizo_viewport_render_scene(RhizoContext* context,const float vp[16]) { if(!context||!vp)return RHIZO_ERROR_INVALID_ARGUMENT; rhizo::Mat4 matrix{}; std::copy(vp,vp+16,matrix.v.begin()); context->viewport.set_render_settings(context->render_settings); std::string error; if(!context->viewport.render_scene(context->scene,matrix,context->selected_entity,context->gizmo_mode,error)){context->last_error=std::move(error);return RHIZO_ERROR_VULKAN;} return RHIZO_SUCCESS; }
 void rhizo_viewport_detach(RhizoContext* context) { if (context) context->viewport.detach(); }
 
 RhizoResult rhizo_get_device_info(const RhizoContext* context,
@@ -289,6 +289,43 @@ RhizoResult rhizo_editor_set_gizmo_mode(RhizoContext*c,uint32_t mode){
  if(!c||mode>RHIZO_GIZMO_SCALE)return RHIZO_ERROR_INVALID_ARGUMENT;c->gizmo_mode=mode;return RHIZO_SUCCESS;
 }
 uint32_t rhizo_editor_get_gizmo_mode(const RhizoContext*c){return c?c->gizmo_mode:RHIZO_GIZMO_TRANSLATE;}
+namespace {
+bool project_gizmo_point(const float vp[16],uint32_t w,uint32_t h,rhizo::Vec3 p,rhizo::Vec2&out){
+ const float x=vp[0]*p.x+vp[4]*p.y+vp[8]*p.z+vp[12],y=vp[1]*p.x+vp[5]*p.y+vp[9]*p.z+vp[13],z=vp[2]*p.x+vp[6]*p.y+vp[10]*p.z+vp[14],q=vp[3]*p.x+vp[7]*p.y+vp[11]*p.z+vp[15];
+ if(q<=1.0e-5f||!std::isfinite(q))return false;out={(x/q*0.5f+0.5f)*static_cast<float>(w),(1.0f-(y/q*0.5f+0.5f))*static_cast<float>(h)};return std::isfinite(out.x)&&std::isfinite(out.y)&&z/q>=0.0f;
+}
+rhizo::Vec3 gizmo_axis(uint32_t axis){return axis==0?rhizo::Vec3{1,0,0}:(axis==1?rhizo::Vec3{0,1,0}:rhizo::Vec3{0,0,1});}
+rhizo::Vec3 rotate_axis(rhizo::Vec3 a,const rhizo::Quat&q){rhizo::Vec3 v{q.x,q.y,q.z};rhizo::Vec3 t=rhizo::cross(v,a)*2.0f;return a+t*q.w+rhizo::cross(v,t);}
+float point_segment_distance(rhizo::Vec2 p,rhizo::Vec2 a,rhizo::Vec2 b){float dx=b.x-a.x,dy=b.y-a.y,l=dx*dx+dy*dy,t=l>1e-6f?std::clamp(((p.x-a.x)*dx+(p.y-a.y)*dy)/l,0.0f,1.0f):0.0f;float x=a.x+t*dx,y=a.y+t*dy;return std::hypot(p.x-x,p.y-y);}
+}
+RhizoResult rhizo_editor_gizmo_pick_axis(const float vp[16],uint32_t w,uint32_t h,const float origin[3],float size,float cx,float cy,float radius,uint32_t*out){
+ if(!vp||!origin||!out||!w||!h||!std::isfinite(size)||size<=0||!std::isfinite(cx)||!std::isfinite(cy)||!std::isfinite(radius)||radius<=0)return RHIZO_ERROR_INVALID_ARGUMENT;
+ rhizo::Vec3 o{origin[0],origin[1],origin[2]};rhizo::Vec2 p{cx,cy},a,b;if(!project_gizmo_point(vp,w,h,o,a))return RHIZO_ERROR_INVALID_ARGUMENT;
+ float best=radius;uint32_t selected=UINT32_MAX;
+ for(uint32_t i=0;i<3;i++){if(!project_gizmo_point(vp,w,h,o+gizmo_axis(i)*size,b))continue;float d=point_segment_distance(p,a,b);if(d<best){best=d;selected=i;}}
+ if(selected==UINT32_MAX)return RHIZO_ERROR_INVALID_ARGUMENT;*out=selected;return RHIZO_SUCCESS;
+}
+RhizoResult rhizo_editor_gizmo_drag(RhizoContext*c,const float vp[16],uint32_t w,uint32_t h,uint32_t axis,float size,float cx,float cy,float dx,float dy,uint8_t local){
+ if(!c||!vp||!w||!h||axis>2||!std::isfinite(size)||size<=0||!std::isfinite(cx)||!std::isfinite(cy)||!std::isfinite(dx)||!std::isfinite(dy)||!c->selected_entity)return RHIZO_ERROR_INVALID_ARGUMENT;
+ auto*n=c->scene.get(c->selected_entity);if(!n)return RHIZO_ERROR_INVALID_ARGUMENT;
+ rhizo::Mat4 world=c->scene.world_matrix(n->id);rhizo::Vec3 origin{world.v[12],world.v[13],world.v[14]},a=gizmo_axis(axis);
+ if(local)a=rotate_axis(a,n->local.rotation);
+ rhizo::Vec2 center,end;if(!project_gizmo_point(vp,w,h,origin,center))return RHIZO_ERROR_INVALID_ARGUMENT;
+ float amount=0;
+ if(c->gizmo_mode==RHIZO_GIZMO_ROTATE){
+   rhizo::Vec3 u=axis==0?rhizo::Vec3{0,1,0}:(axis==1?rhizo::Vec3{1,0,0}:rhizo::Vec3{1,0,0});
+   if(axis==0)u=rotate_axis(u,n->local.rotation);else if(axis==1)u=rotate_axis(u,n->local.rotation);else u=rotate_axis(u,n->local.rotation);
+   rhizo::Vec2 edge;if(!project_gizmo_point(vp,w,h,origin+u*size,edge))return RHIZO_ERROR_INVALID_ARGUMENT;
+   float rx=cx-center.x,ry=cy-center.y,r=std::hypot(rx,ry);if(r<4.0f)return RHIZO_ERROR_INVALID_ARGUMENT;
+   float tx=-ry/r,ty=rx/r;amount=(dx*tx+dy*ty)/r;
+ }else{
+   if(!project_gizmo_point(vp,w,h,origin+a*size,end))return RHIZO_ERROR_INVALID_ARGUMENT;
+   float ax=end.x-center.x,ay=end.y-center.y,l=ax*ax+ay*ay;if(l<1.0f)return RHIZO_ERROR_INVALID_ARGUMENT;
+   amount=((dx*ax+dy*ay)/l);
+   if(c->gizmo_mode==RHIZO_GIZMO_TRANSLATE)amount*=size;
+ }
+ return rhizo_editor_apply_gizmo_delta(c,axis,amount,local);
+}
 RhizoResult rhizo_editor_apply_gizmo_delta(RhizoContext*c,uint32_t axis,float delta,uint8_t local){
  if(!c||axis>2||!std::isfinite(delta)||!c->selected_entity)return RHIZO_ERROR_INVALID_ARGUMENT;
  auto*n=c->scene.get(c->selected_entity);if(!n)return RHIZO_ERROR_INVALID_ARGUMENT;

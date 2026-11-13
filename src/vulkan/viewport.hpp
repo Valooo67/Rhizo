@@ -1,6 +1,7 @@
 #pragma once
 #include "vulkan_context.hpp"
 #include "rhizo/scene.hpp"
+#include "rhizo/rhizo.h"
 #include <android/native_window.h>
 #include <vector>
 #include <memory>
@@ -13,7 +14,7 @@ class Viewport final {
   ~Viewport();
   bool attach(VulkanContext&,ANativeWindow*,std::string&);
   bool render(float,float,float,float,std::string&);
-  bool render_scene(const Scene&,const Mat4&,std::string&);
+  bool render_scene(const Scene&,const Mat4&,uint32_t selected_entity,uint32_t gizmo_mode,std::string&);
   void detach() noexcept;
   void set_render_settings(const RhizoRenderSettings& settings) noexcept { settings_ = settings; }
   uint32_t width()const{return extent_.width;}

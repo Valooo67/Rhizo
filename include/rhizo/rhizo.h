@@ -108,6 +108,8 @@ RHIZO_API uint32_t rhizo_editor_get_selection(const RhizoContext*);
 RHIZO_API RhizoResult rhizo_editor_set_gizmo_mode(RhizoContext*,uint32_t);
 RHIZO_API uint32_t rhizo_editor_get_gizmo_mode(const RhizoContext*);
 RHIZO_API RhizoResult rhizo_editor_apply_gizmo_delta(RhizoContext*,uint32_t axis,float delta,uint8_t local_space);
+RHIZO_API RhizoResult rhizo_editor_gizmo_pick_axis(const float view_projection[16],uint32_t viewport_width,uint32_t viewport_height,const float origin[3],float world_size,float cursor_x,float cursor_y,float hit_radius_px,uint32_t* axis_out);
+RHIZO_API RhizoResult rhizo_editor_gizmo_drag(RhizoContext*,const float view_projection[16],uint32_t viewport_width,uint32_t viewport_height,uint32_t axis,float world_size,float cursor_x,float cursor_y,float delta_x,float delta_y,uint8_t local_space);
 RHIZO_API RhizoResult rhizo_scene_get_transform(const RhizoContext*,uint32_t,RhizoTransform*);
 RHIZO_API uint32_t rhizo_scene_get_node_count(const RhizoContext*);
 RHIZO_API RhizoResult rhizo_scene_get_node(const RhizoContext*,uint32_t,RhizoSceneNodeInfo*);
