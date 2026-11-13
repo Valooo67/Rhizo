@@ -77,6 +77,8 @@ typedef struct RhizoOpenGLFrameInfo {
  uint32_t pixel_format,reserved;
 } RhizoOpenGLFrameInfo;
 enum { RHIZO_FRAME_RGBA8=1u, RHIZO_FRAME_BGRA8=2u };
+typedef struct RhizoAssetInfo { uint32_t struct_size,type; uint64_t id,size,modified; char path[512]; } RhizoAssetInfo;
+typedef struct RhizoResourceStats { uint32_t struct_size,texture_cache_entries,model_cache_entries,asset_count; } RhizoResourceStats;
 typedef struct RhizoMaterialInfo {
   uint32_t struct_size;
   float base_color[4],metallic,roughness;
@@ -160,6 +162,16 @@ RHIZO_API RhizoResult rhizo_editor_gizmo_vertices(const float[3],float,RhizoEdit
 
 RHIZO_API RhizoResult rhizo_scene_get_material_info(const RhizoContext*,uint32_t,RhizoMaterialInfo*);
 RHIZO_API RhizoResult rhizo_scene_set_material_info(RhizoContext*,uint32_t,const RhizoMaterialInfo*);
+RHIZO_API RhizoResult rhizo_scene_save(RhizoContext*,const char*);
+RHIZO_API RhizoResult rhizo_scene_load(RhizoContext*,const char*);
+RHIZO_API RhizoResult rhizo_prefab_save(RhizoContext*,uint32_t,const char*);
+RHIZO_API RhizoResult rhizo_prefab_instantiate(RhizoContext*,const char*,uint32_t,uint32_t*);
+RHIZO_API RhizoResult rhizo_assets_scan(RhizoContext*,const char*);
+RHIZO_API uint32_t rhizo_assets_get_count(const RhizoContext*);
+RHIZO_API RhizoResult rhizo_assets_get(const RhizoContext*,uint32_t,RhizoAssetInfo*);
+RHIZO_API void rhizo_resources_collect(RhizoContext*);
+RHIZO_API void rhizo_resources_clear(RhizoContext*);
+RHIZO_API RhizoResult rhizo_resources_get_stats(const RhizoContext*,RhizoResourceStats*);
 #ifdef __cplusplus
 }
 #endif
