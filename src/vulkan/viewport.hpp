@@ -35,7 +35,11 @@ class Viewport final {
     size_t vertex_count=0,index_count=0;
     Vec4 base_color{};
     float metallic=-1.0f,roughness=-1.0f;
+    Vec3 bounds_center{};
+    float bounds_radius=0.0f;
   };
+  struct DrawItem { const Mesh* mesh=nullptr; Mat4 model=Mat4::identity(); uint32_t meshIndex=0; };
+  std::vector<DrawItem> draw_items_;
   VulkanContext* context_=nullptr;
   ANativeWindow* window_=nullptr;
   VkSurfaceKHR surface_=VK_NULL_HANDLE;
