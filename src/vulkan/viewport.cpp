@@ -194,16 +194,15 @@ bool Viewport::render_scene(const Scene&scene,const Mat4&viewProjection,uint32_t
   const uint32_t targetCount=static_cast<uint32_t>(m.morph_targets.size()),vertexCount=static_cast<uint32_t>(m.vertices.size());
   const VkDeviceSize deltaBytes=static_cast<VkDeviceSize>(targetCount)*vertexCount*2u*sizeof(Vec4),totalBytes=sizeof(MorphHeader)+deltaBytes;
   if(morph==morph_cache_.end()){
-   MorphGpuCache entry;entry.entity=node.id;entry.mesh_index=mi;entry.data=std::make_unique<GpuBuffer>();if(!entry.data->create(*context_,totalBytes,VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,true,e))return false;
+   MorphGpuCache entry;entry.entity=node.id;entry.mesh_index=mi;entry.vertex_count=vertexCount;entry.target_count=targetCount;entry.data=std::make_unique<GpuBuffer>();if(!entry.data->create(*context_,totalBytes,VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,true,e))return false;
    VkDescriptorSetAllocateInfo ai{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};ai.descriptorPool=morph_descriptor_pool_;ai.descriptorSetCount=1;ai.pSetLayouts=&morph_set_layout_;if(vkAllocateDescriptorSets(context_->device(),&ai,&entry.descriptor)!=VK_SUCCESS){e="GPU morph descriptor allocation failed";return false;}
    VkDescriptorBufferInfo bi{entry.data->handle(),0,totalBytes};VkWriteDescriptorSet wr{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};wr.dstSet=entry.descriptor;wr.dstBinding=0;wr.descriptorCount=1;wr.descriptorType=VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;wr.pBufferInfo=&bi;vkUpdateDescriptorSets(context_->device(),1,&wr,0,nullptr);morph_cache_.push_back(std::move(entry));morph=std::prev(morph_cache_.end());
   }
+  if(morph->vertex_count!=vertexCount||morph->target_count!=targetCount){e="Morph GPU cache dimensions changed";return false;}
   MorphHeader header{};header.vertexCount=vertexCount;header.targetCount=targetCount;
   for(uint32_t t=0;t<targetCount;t++)header.weights[t].x=t<node.morph_weights.size()?node.morph_weights[t]:0.0f;
   if(!morph->data->write(0,&header,sizeof(header),e))return false;
-  std::vector<Vec4>deltas;deltas.reserve(static_cast<size_t>(targetCount)*vertexCount*2u);
-  for(const auto&target:m.morph_targets)for(uint32_t v=0;v<vertexCount;v++){const Vec3 dp=v<target.position_deltas.size()?target.position_deltas[v]:Vec3{};const Vec3 dn=v<target.normal_deltas.size()?target.normal_deltas[v]:Vec3{};deltas.push_back({dp.x,dp.y,dp.z,0});deltas.push_back({dn.x,dn.y,dn.z,0});}
-  if(!deltas.empty()&&!morph->data->write(sizeof(MorphHeader),deltas.data(),deltaBytes,e))return false;
+  if(!morph->data_uploaded){std::vector<Vec4>deltas;deltas.reserve(static_cast<size_t>(targetCount)*vertexCount*2u);for(const auto&target:m.morph_targets)for(uint32_t v=0;v<vertexCount;v++){const Vec3 dp=v<target.position_deltas.size()?target.position_deltas[v]:Vec3{};const Vec3 dn=v<target.normal_deltas.size()?target.normal_deltas[v]:Vec3{};deltas.push_back({dp.x,dp.y,dp.z,0});deltas.push_back({dn.x,dn.y,dn.z,0});}if(!deltas.empty()&&!morph->data->write(sizeof(MorphHeader),deltas.data(),deltaBytes,e))return false;morph->data_uploaded=true;}
   morphSet=morph->descriptor;
  }
  DrawItem draw{&m,model,mi,node.id,skinSet,morphSet,!m.bones.empty(),hasMorph};all_draw_items_.push_back(draw);if(sphere_visible(frustum,model,cache.bounds_center,cache.bounds_radius))items.push_back(draw);}}
