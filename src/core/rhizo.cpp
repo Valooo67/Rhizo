@@ -114,12 +114,13 @@ RhizoResult rhizo_viewport_attach(RhizoContext* context, void* native_window) {
 
 RhizoResult rhizo_viewport_render(RhizoContext* context, float r, float g, float b, float a) {
   if (!context) return RHIZO_ERROR_INVALID_ARGUMENT;
+  context->viewport.set_render_settings(context->render_settings);
   std::string error;
   if (!context->viewport.render(r,g,b,a,error)) { context->last_error = std::move(error); return RHIZO_ERROR_VULKAN; }
   return RHIZO_SUCCESS;
 }
 
-RhizoResult rhizo_viewport_render_scene(RhizoContext* context,const float vp[16]) { if(!context||!vp)return RHIZO_ERROR_INVALID_ARGUMENT; rhizo::Mat4 matrix{}; std::copy(vp,vp+16,matrix.v.begin()); std::string error; if(!context->viewport.render_scene(context->scene,matrix,error)){context->last_error=std::move(error);return RHIZO_ERROR_VULKAN;} return RHIZO_SUCCESS; }
+RhizoResult rhizo_viewport_render_scene(RhizoContext* context,const float vp[16]) { if(!context||!vp)return RHIZO_ERROR_INVALID_ARGUMENT; rhizo::Mat4 matrix{}; std::copy(vp,vp+16,matrix.v.begin()); context->viewport.set_render_settings(context->render_settings); std::string error; if(!context->viewport.render_scene(context->scene,matrix,error)){context->last_error=std::move(error);return RHIZO_ERROR_VULKAN;} return RHIZO_SUCCESS; }
 void rhizo_viewport_detach(RhizoContext* context) { if (context) context->viewport.detach(); }
 
 RhizoResult rhizo_get_device_info(const RhizoContext* context,

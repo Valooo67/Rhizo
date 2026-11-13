@@ -1,6 +1,7 @@
 #include "viewport.hpp"
 #include "gpu_buffer.hpp"
 #include "rhizo/editor_geometry.hpp"
+#include "rhizo/rhizo.h"
 #include "shader_spv.hpp"
 #include <algorithm>
 #include <array>
@@ -10,7 +11,7 @@
 namespace rhizo {
 namespace {
 struct RenderVertex { float p[3],n[3],color[4],material[2]; };
-struct DrawPush { float vp[16]; float model[16]; };
+struct DrawPush { float vp[16]; float model[16]; float settings[4]; };
 VkShaderModule shader_module(VkDevice d,const uint32_t* code,size_t bytes){
  VkShaderModuleCreateInfo ci{VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};ci.codeSize=bytes;ci.pCode=code;
  VkShaderModule m=VK_NULL_HANDLE;return vkCreateShaderModule(d,&ci,nullptr,&m)==VK_SUCCESS?m:VK_NULL_HANDLE;
@@ -69,7 +70,7 @@ bool Viewport::create_swapchain(std::string&e){
 bool Viewport::create_pipeline(std::string&e){
  VkDevice d=context_->device();VkShaderModule vs=shader_module(d,shaders::vertex,shaders::vertex_bytes),fs=shader_module(d,shaders::fragment,shaders::fragment_bytes);
  if(!vs||!fs){if(vs)vkDestroyShaderModule(d,vs,nullptr);if(fs)vkDestroyShaderModule(d,fs,nullptr);e="PBR SPIR-V shader module creation failed";return false;}
- VkPushConstantRange range{};range.stageFlags=VK_SHADER_STAGE_VERTEX_BIT;range.offset=0;range.size=sizeof(DrawPush);
+ VkPushConstantRange range{};range.stageFlags=VK_SHADER_STAGE_VERTEX_BIT|VK_SHADER_STAGE_FRAGMENT_BIT;range.offset=0;range.size=sizeof(DrawPush);
  VkPipelineLayoutCreateInfo li{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};li.pushConstantRangeCount=1;li.pPushConstantRanges=&range;VkResult r=vkCreatePipelineLayout(d,&li,nullptr,&pipeline_layout_);if(r!=VK_SUCCESS){e="Graphics pipeline layout creation failed";vkDestroyShaderModule(d,vs,nullptr);vkDestroyShaderModule(d,fs,nullptr);return false;}
  VkPipelineShaderStageCreateInfo stages[2]{};stages[0]={VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};stages[0].stage=VK_SHADER_STAGE_VERTEX_BIT;stages[0].module=vs;stages[0].pName="main";stages[1]={VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};stages[1].stage=VK_SHADER_STAGE_FRAGMENT_BIT;stages[1].module=fs;stages[1].pName="main";
  VkVertexInputBindingDescription binding{0,sizeof(RenderVertex),VK_VERTEX_INPUT_RATE_VERTEX};
@@ -86,7 +87,7 @@ bool Viewport::create_pipeline(std::string&e){
  r=vkCreateGraphicsPipelines(d,VK_NULL_HANDLE,1,&pi,nullptr,&triangle_pipeline_);if(r!=VK_SUCCESS){e="PBR graphics pipeline creation failed: "+std::to_string(r);vkDestroyShaderModule(d,vs,nullptr);vkDestroyShaderModule(d,fs,nullptr);destroy_pipeline();return false;}
  ia.topology=VK_PRIMITIVE_TOPOLOGY_LINE_LIST;rs.cullMode=VK_CULL_MODE_NONE;ds.depthTestEnable=VK_FALSE;ds.depthWriteEnable=VK_FALSE;ba.blendEnable=VK_TRUE;ba.srcColorBlendFactor=VK_BLEND_FACTOR_SRC_ALPHA;ba.dstColorBlendFactor=VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;ba.colorBlendOp=VK_BLEND_OP_ADD;ba.srcAlphaBlendFactor=VK_BLEND_FACTOR_ONE;ba.dstAlphaBlendFactor=VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;ba.alphaBlendOp=VK_BLEND_OP_ADD;
  r=vkCreateGraphicsPipelines(d,VK_NULL_HANDLE,1,&pi,nullptr,&line_pipeline_);if(r!=VK_SUCCESS){e="Editor line pipeline creation failed: "+std::to_string(r);vkDestroyShaderModule(d,vs,nullptr);vkDestroyShaderModule(d,fs,nullptr);destroy_pipeline();return false;}
- vkDestroyShaderModule(d,vs,nullptr);vkDestroyShaderModule(d,fs,nullptr);return true;
+ ia.topology=VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;rs.cullMode=VK_CULL_MODE_NONE;ds.depthTestEnable=VK_TRUE;ds.depthWriteEnable=VK_TRUE;ba.blendEnable=VK_FALSE;r=vkCreateGraphicsPipelines(d,VK_NULL_HANDLE,1,&pi,nullptr,&triangle_no_cull_pipeline_);if(r!=VK_SUCCESS){e="Unculled PBR pipeline creation failed: "+std::to_string(r);vkDestroyShaderModule(d,vs,nullptr);vkDestroyShaderModule(d,fs,nullptr);destroy_pipeline();return false;}vkDestroyShaderModule(d,vs,nullptr);vkDestroyShaderModule(d,fs,nullptr);return true;
 }
 bool Viewport::render(float red,float green,float blue,float alpha,std::string&e){
  clear_color_={std::clamp(red,0.0f,1.0f),std::clamp(green,0.0f,1.0f),std::clamp(blue,0.0f,1.0f),std::clamp(alpha,0.0f,1.0f)};
@@ -106,7 +107,7 @@ bool Viewport::render_scene(const Scene&scene,const Mat4&viewProjection,std::str
  VkViewport vp{0,0,static_cast<float>(extent_.width),static_cast<float>(extent_.height),0,1};VkRect2D sc{{0,0},extent_};vkCmdSetViewport(command_,0,1,&vp);vkCmdSetScissor(command_,0,1,&sc);
  auto upload=[&](const void*data,VkDeviceSize size,VkBufferUsageFlags usage)->VkBuffer{
    auto b=std::make_unique<GpuBuffer>();std::string err;if(!b->create(*context_,size,usage,true,err)||!b->write(0,data,size,err)){e=err;return VK_NULL_HANDLE;}VkBuffer h=b->handle();transient_buffers_.push_back(std::move(b));return h;};
- vkCmdBindPipeline(command_,VK_PIPELINE_BIND_POINT_GRAPHICS,triangle_pipeline_);
+ vkCmdBindPipeline(command_,VK_PIPELINE_BIND_POINT_GRAPHICS,(!settings_.enable_backface_culling?triangle_no_cull_pipeline_:triangle_pipeline_));
  mesh_cache_.resize(scene.meshes.size());
  for(const auto&node:scene.nodes()){if(!node.visible||node.mesh_indices.empty())continue;Mat4 model=scene.world_matrix(node.id);for(uint32_t mi:node.mesh_indices){if(mi>=scene.meshes.size())continue;const Mesh&m=scene.meshes[mi];if(m.vertices.empty()||m.indices.empty())continue;
   Material mat{};if(m.material_index<scene.materials.size())mat=scene.materials[m.material_index];
@@ -119,16 +120,16 @@ bool Viewport::render_scene(const Scene&scene,const Mat4&viewProjection,std::str
    if(!cache.vertices->write(0,verts.data(),vbSize,err)||!cache.indices->write(0,m.indices.data(),ibSize,err)){e=err;vkCmdEndRenderPass(command_);vkEndCommandBuffer(command_);return false;}
    cache.source_vertices=m.vertices.data();cache.source_indices=m.indices.data();cache.vertex_count=m.vertices.size();cache.index_count=m.indices.size();cache.base_color=mat.base_color;cache.metallic=mat.metallic;cache.roughness=mat.roughness;
   }
-  VkBuffer vb=cache.vertices->handle(),ib=cache.indices->handle();VkDeviceSize off=0;vkCmdBindVertexBuffers(command_,0,1,&vb,&off);vkCmdBindIndexBuffer(command_,ib,0,VK_INDEX_TYPE_UINT32);DrawPush push{};std::memcpy(push.vp,viewProjection.data(),64);std::memcpy(push.model,model.data(),64);vkCmdPushConstants(command_,pipeline_layout_,VK_SHADER_STAGE_VERTEX_BIT,0,static_cast<uint32_t>(sizeof(push)),&push);vkCmdDrawIndexed(command_,static_cast<uint32_t>(m.indices.size()),1,0,0,0);
+  VkBuffer vb=cache.vertices->handle(),ib=cache.indices->handle();VkDeviceSize off=0;vkCmdBindVertexBuffers(command_,0,1,&vb,&off);vkCmdBindIndexBuffer(command_,ib,0,VK_INDEX_TYPE_UINT32);DrawPush push{};std::memcpy(push.vp,viewProjection.data(),64);std::memcpy(push.model,model.data(),64);push.settings[0]=settings_.exposure;push.settings[1]=settings_.environment_intensity;push.settings[2]=settings_.enable_pbr?1.0f:0.0f;push.settings[3]=settings_.enable_textures?1.0f:0.0f;vkCmdPushConstants(command_,pipeline_layout_,VK_SHADER_STAGE_VERTEX_BIT|VK_SHADER_STAGE_FRAGMENT_BIT,0,static_cast<uint32_t>(sizeof(push)),&push);vkCmdDrawIndexed(command_,static_cast<uint32_t>(m.indices.size()),1,0,0,0);
  }}
  // Editor grid and origin gizmo are real line geometry in the same depth-aware viewport.
- auto drawLines=[&](const EditorGeometry&g,const Mat4&model){if(g.vertices.empty())return;std::vector<RenderVertex> v;v.reserve(g.vertices.size());for(const auto&x:g.vertices)v.push_back({{x.position.x,x.position.y,x.position.z},{0,0,1},{x.color.x,x.color.y,x.color.z,x.color.w},{0,1}});VkBuffer b=upload(v.data(),static_cast<VkDeviceSize>(v.size()*sizeof(RenderVertex)),VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);if(!b)return;vkCmdBindPipeline(command_,VK_PIPELINE_BIND_POINT_GRAPHICS,line_pipeline_);VkDeviceSize off=0;vkCmdBindVertexBuffers(command_,0,1,&b,&off);DrawPush push{};std::memcpy(push.vp,viewProjection.data(),64);std::memcpy(push.model,model.data(),64);vkCmdPushConstants(command_,pipeline_layout_,VK_SHADER_STAGE_VERTEX_BIT,0,sizeof(push),&push);vkCmdDraw(command_,static_cast<uint32_t>(v.size()),1,0,0);};
+ auto drawLines=[&](const EditorGeometry&g,const Mat4&model){if(g.vertices.empty())return;std::vector<RenderVertex> v;v.reserve(g.vertices.size());for(const auto&x:g.vertices)v.push_back({{x.position.x,x.position.y,x.position.z},{0,0,1},{x.color.x,x.color.y,x.color.z,x.color.w},{0,1}});VkBuffer b=upload(v.data(),static_cast<VkDeviceSize>(v.size()*sizeof(RenderVertex)),VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);if(!b)return;vkCmdBindPipeline(command_,VK_PIPELINE_BIND_POINT_GRAPHICS,line_pipeline_);VkDeviceSize off=0;vkCmdBindVertexBuffers(command_,0,1,&b,&off);DrawPush push{};std::memcpy(push.vp,viewProjection.data(),64);std::memcpy(push.model,model.data(),64);push.settings[0]=settings_.exposure;push.settings[1]=settings_.environment_intensity;push.settings[2]=settings_.enable_pbr?1.0f:0.0f;push.settings[3]=settings_.enable_textures?1.0f:0.0f;vkCmdPushConstants(command_,pipeline_layout_,VK_SHADER_STAGE_VERTEX_BIT|VK_SHADER_STAGE_FRAGMENT_BIT,0,sizeof(push),&push);vkCmdDraw(command_,static_cast<uint32_t>(v.size()),1,0,0);};
  drawLines(make_grid(10.0f,20),Mat4::identity());drawLines(make_transform_gizmo({0,0,0},1.25f),Mat4::identity());
  vkCmdEndRenderPass(command_);r=vkEndCommandBuffer(command_);if(r!=VK_SUCCESS){e="Viewport command end failed";return false;}
  VkPipelineStageFlags wait=VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;VkSubmitInfo si{VK_STRUCTURE_TYPE_SUBMIT_INFO};si.waitSemaphoreCount=1;si.pWaitSemaphores=&acquired_;si.pWaitDstStageMask=&wait;si.commandBufferCount=1;si.pCommandBuffers=&command_;si.signalSemaphoreCount=1;si.pSignalSemaphores=&finished_;r=vkQueueSubmit(context_->graphics_queue(),1,&si,fence_);if(r!=VK_SUCCESS){e="Viewport queue submit failed: "+std::to_string(r);return false;}
  VkPresentInfoKHR pi{VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};pi.waitSemaphoreCount=1;pi.pWaitSemaphores=&finished_;pi.swapchainCount=1;pi.pSwapchains=&swapchain_;pi.pImageIndices=&index;r=vkQueuePresentKHR(context_->graphics_queue(),&pi);if(r!=VK_SUCCESS&&r!=VK_SUBOPTIMAL_KHR){e="vkQueuePresentKHR failed: "+std::to_string(r);return false;}return true;
 }
-void Viewport::destroy_pipeline()noexcept{if(!context_)return;VkDevice d=context_->device();if(triangle_pipeline_)vkDestroyPipeline(d,triangle_pipeline_,nullptr);if(line_pipeline_)vkDestroyPipeline(d,line_pipeline_,nullptr);if(pipeline_layout_)vkDestroyPipelineLayout(d,pipeline_layout_,nullptr);triangle_pipeline_=line_pipeline_=VK_NULL_HANDLE;pipeline_layout_=VK_NULL_HANDLE;}
+void Viewport::destroy_pipeline()noexcept{if(!context_)return;VkDevice d=context_->device();if(triangle_pipeline_)vkDestroyPipeline(d,triangle_pipeline_,nullptr);if(triangle_no_cull_pipeline_)vkDestroyPipeline(d,triangle_no_cull_pipeline_,nullptr);if(line_pipeline_)vkDestroyPipeline(d,line_pipeline_,nullptr);if(pipeline_layout_)vkDestroyPipelineLayout(d,pipeline_layout_,nullptr);triangle_pipeline_=triangle_no_cull_pipeline_=line_pipeline_=VK_NULL_HANDLE;pipeline_layout_=VK_NULL_HANDLE;}
 void Viewport::destroy_swapchain()noexcept{if(!context_)return;VkDevice d=context_->device();for(auto f:framebuffers_)if(f)vkDestroyFramebuffer(d,f,nullptr);framebuffers_.clear();if(render_pass_)vkDestroyRenderPass(d,render_pass_,nullptr);render_pass_=VK_NULL_HANDLE;for(auto v:views_)if(v)vkDestroyImageView(d,v,nullptr);views_.clear();images_.clear();if(depth_view_)vkDestroyImageView(d,depth_view_,nullptr);if(depth_image_)vkDestroyImage(d,depth_image_,nullptr);if(depth_memory_)vkFreeMemory(d,depth_memory_,nullptr);depth_view_=VK_NULL_HANDLE;depth_image_=VK_NULL_HANDLE;depth_memory_=VK_NULL_HANDLE;if(swapchain_)vkDestroySwapchainKHR(d,swapchain_,nullptr);swapchain_=VK_NULL_HANDLE;}
 void Viewport::detach()noexcept{if(context_){VkDevice d=context_->device();if(d)vkDeviceWaitIdle(d);transient_buffers_.clear();mesh_cache_.clear();destroy_pipeline();destroy_swapchain();if(command_)vkFreeCommandBuffers(d,context_->command_pool(),1,&command_);if(acquired_)vkDestroySemaphore(d,acquired_,nullptr);if(finished_)vkDestroySemaphore(d,finished_,nullptr);if(fence_)vkDestroyFence(d,fence_,nullptr);if(surface_)vkDestroySurfaceKHR(context_->instance(),surface_,nullptr);}command_=VK_NULL_HANDLE;acquired_=finished_=VK_NULL_HANDLE;fence_=VK_NULL_HANDLE;surface_=VK_NULL_HANDLE;if(window_){ANativeWindow_release(window_);window_=nullptr;}context_=nullptr;extent_={};}
 }

@@ -15,6 +15,7 @@ class Viewport final {
   bool render(float,float,float,float,std::string&);
   bool render_scene(const Scene&,const Mat4&,std::string&);
   void detach() noexcept;
+  void set_render_settings(const RhizoRenderSettings& settings) noexcept { settings_ = settings; }
   uint32_t width()const{return extent_.width;}
   uint32_t height()const{return extent_.height;}
  private:
@@ -44,12 +45,13 @@ class Viewport final {
   VkImageView depth_view_=VK_NULL_HANDLE;
   VkRenderPass render_pass_=VK_NULL_HANDLE;
   VkPipelineLayout pipeline_layout_=VK_NULL_HANDLE;
-  VkPipeline triangle_pipeline_=VK_NULL_HANDLE,line_pipeline_=VK_NULL_HANDLE;
+  VkPipeline triangle_pipeline_=VK_NULL_HANDLE,triangle_no_cull_pipeline_=VK_NULL_HANDLE,line_pipeline_=VK_NULL_HANDLE;
   VkCommandBuffer command_=VK_NULL_HANDLE;
   VkSemaphore acquired_=VK_NULL_HANDLE,finished_=VK_NULL_HANDLE;
   VkFence fence_=VK_NULL_HANDLE;
   std::vector<MeshGpuCache> mesh_cache_;
   std::vector<std::unique_ptr<GpuBuffer>> transient_buffers_;
+  RhizoRenderSettings settings_{sizeof(RhizoRenderSettings),RHIZO_SHADOWS_MAPS,2048,0.0015f,0.01f,1.0f,1.0f,1.0f,1,1,1,1,{0,0,0,0}};
   std::array<float,4> clear_color_{{0.055f,0.065f,0.085f,1.0f}};
 };
 }

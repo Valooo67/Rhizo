@@ -12,6 +12,9 @@ RHIZO is the native Android ARM64 3D runtime for Flux Studio. The engine exposes
 - Transform animation tracks: position, quaternion rotation (slerp) and scale.
 - Assimp-based FBX, glTF/GLB, OBJ and DAE import.
 - PBR material metadata: base color, metallic, roughness, base-color, normal, metallic and emissive texture references.
+- Vulkan swapchain viewport with indexed mesh rendering, depth testing, grid and transform-gizmo line geometry.
+- Runtime render controls for exposure, environment intensity, PBR on/off and backface-culling on/off.
+- OpenGL frame upload to a Vulkan sampled image, with an opaque image-view/sampler handle API for host-side composition.
 - Embedded material texture extraction from imported assets.
 - ZIP package extraction for ordinary ZIP archives, with path traversal protection and a 512 MiB per-entry extraction limit.
 
@@ -48,4 +51,4 @@ Assimp is fetched at configure time and built for the Android target. The Linux 
 
 ## Not yet complete
 
-This is not yet the full viewport renderer. Android surface/swapchain presentation, PBR draw pipeline, shadow-map and hardware ray-query shadow backends, editor grid/gizmo draw passes, camera/light components, and end-to-end Flux Studio JNI/UI integration still require implementation and device validation. The current animation API covers entity transforms; arbitrary material/light/camera property tracks are not yet exposed.
+The renderer currently provides the Vulkan viewport, PBR shading, depth-tested scene geometry, grid and gizmo visualization. The current shadow-map object allocates a sampled depth image, but a depth-only shadow render pass and shader-side shadow sampling are not yet connected; hardware ray tracing remains deferred. Material texture paths are imported and reported, but texture decoding, per-material GPU descriptors and sampling are still pending. OpenGL frames are uploaded to Vulkan images and exposed as handles; automatic compositing into scene materials is not yet wired. Device validation and end-to-end Flux Studio JNI/UI integration remain necessary. The animation API exposes entity transforms and generic parameter tracks.

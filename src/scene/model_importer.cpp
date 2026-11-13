@@ -116,8 +116,8 @@ bool import_model(Scene&scene,const std::string&path,const std::string&cache,Imp
   aiString tex;
   if(src->GetTexture(aiTextureType_BASE_COLOR,0,&tex)==AI_SUCCESS||src->GetTexture(aiTextureType_DIFFUSE,0,&tex)==AI_SUCCESS)m.base_color_texture=resolve_texture(in,actual.parent_path(),fs::path(cache),tex);
   if(src->GetTexture(aiTextureType_NORMALS,0,&tex)==AI_SUCCESS||src->GetTexture(aiTextureType_HEIGHT,0,&tex)==AI_SUCCESS)m.normal_texture=resolve_texture(in,actual.parent_path(),fs::path(cache),tex);
-  if(src->GetTexture(aiTextureType_METALNESS,0,&tex)==AI_SUCCESS)m.metallic_roughness_texture=(actual.parent_path()/tex.C_Str()).lexically_normal().string();
-  if(src->GetTexture(aiTextureType_EMISSIVE,0,&tex)==AI_SUCCESS)m.emissive_texture=(actual.parent_path()/tex.C_Str()).lexically_normal().string();
+  if(src->GetTexture(aiTextureType_METALNESS,0,&tex)==AI_SUCCESS)m.metallic_roughness_texture=resolve_texture(in,actual.parent_path(),fs::path(cache),tex);
+  if(src->GetTexture(aiTextureType_EMISSIVE,0,&tex)==AI_SUCCESS)m.emissive_texture=resolve_texture(in,actual.parent_path(),fs::path(cache),tex);
   scene.materials.push_back(std::move(m));++report.materials;
  }
  const uint32_t mesh_base=static_cast<uint32_t>(scene.meshes.size());
