@@ -2,7 +2,8 @@
 #include "rhizo/model_importer.hpp"
 #include "../vulkan/image_decode.hpp"
 #include <algorithm>
-#include <chrono>\n#include <cctype>
+#include <chrono>
+#include <cctype>
 #include <filesystem>
 #include <system_error>
 
