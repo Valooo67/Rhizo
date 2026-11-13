@@ -21,6 +21,7 @@ echo
 echo "===== CHECKED OUT REVISION ====="
 git rev-parse HEAD
 git status --short
+echo "Stage 3 final source revision: $(git rev-parse HEAD)"
 nproc
 free -h
 df -h .
