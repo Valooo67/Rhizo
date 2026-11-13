@@ -2,6 +2,7 @@
 #include "vulkan_context.hpp"
 #include "rhizo/scene.hpp"
 #include "rhizo/rhizo.h"
+#include "rhizo/shadow_map.hpp"
 #include <android/native_window.h>
 #include <vector>
 #include <memory>
@@ -22,6 +23,9 @@ class Viewport final {
  private:
   bool create_swapchain(std::string&);
   bool create_pipeline(std::string&);
+  bool ensure_shadow_map(std::string&);
+  bool create_scene_descriptors(std::string&);
+  void update_scene_descriptors();
   void destroy_pipeline() noexcept;
   void destroy_swapchain() noexcept;
   struct MeshGpuCache {
@@ -46,12 +50,19 @@ class Viewport final {
   VkImageView depth_view_=VK_NULL_HANDLE;
   VkRenderPass render_pass_=VK_NULL_HANDLE;
   VkPipelineLayout pipeline_layout_=VK_NULL_HANDLE;
-  VkPipeline triangle_pipeline_=VK_NULL_HANDLE,triangle_no_cull_pipeline_=VK_NULL_HANDLE,line_pipeline_=VK_NULL_HANDLE;
+  VkPipeline triangle_pipeline_=VK_NULL_HANDLE,triangle_no_cull_pipeline_=VK_NULL_HANDLE,line_pipeline_=VK_NULL_HANDLE,shadow_pipeline_=VK_NULL_HANDLE;
+  VkPipelineLayout shadow_pipeline_layout_=VK_NULL_HANDLE;
+  VkDescriptorSetLayout scene_set_layout_=VK_NULL_HANDLE;
+  VkDescriptorPool scene_descriptor_pool_=VK_NULL_HANDLE;
+  VkDescriptorSet scene_descriptor_set_=VK_NULL_HANDLE;
+  std::unique_ptr<GpuBuffer> scene_uniform_;
+  ShadowMap shadow_map_;
   VkCommandBuffer command_=VK_NULL_HANDLE;
   VkSemaphore acquired_=VK_NULL_HANDLE,finished_=VK_NULL_HANDLE;
   VkFence fence_=VK_NULL_HANDLE;
   std::vector<MeshGpuCache> mesh_cache_;
   std::vector<std::unique_ptr<GpuBuffer>> transient_buffers_;
+  Mat4 shadow_view_projection_=Mat4::identity();
   RhizoRenderSettings settings_{sizeof(RhizoRenderSettings),RHIZO_SHADOWS_MAPS,2048,0.0015f,0.01f,1.0f,1.0f,1.0f,1,1,1,1,{0,0,0,0}};
   std::array<float,4> clear_color_{{0.055f,0.065f,0.085f,1.0f}};
 };

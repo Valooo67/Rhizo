@@ -87,6 +87,7 @@ RHIZO_API RhizoResult rhizo_get_device_info(const RhizoContext*,RhizoDeviceInfo*
 RHIZO_API RhizoResult rhizo_viewport_attach(RhizoContext*,void* native_window);
 RHIZO_API RhizoResult rhizo_viewport_render(RhizoContext*,float red,float green,float blue,float alpha);
 RHIZO_API RhizoResult rhizo_viewport_render_scene(RhizoContext*,const float view_projection[16]);
+RHIZO_API RhizoResult rhizo_viewport_render_scene_camera(RhizoContext*,uint32_t camera_entity);
 RHIZO_API RhizoResult rhizo_render_settings_set(RhizoContext*,const RhizoRenderSettings*);
 RHIZO_API RhizoResult rhizo_render_settings_get(const RhizoContext*,RhizoRenderSettings*);
 RHIZO_API RhizoResult rhizo_opengl_submit_frame(RhizoContext*,const RhizoOpenGLFrameInfo*,const void*,uint64_t);
