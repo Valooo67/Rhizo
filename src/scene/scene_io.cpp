@@ -65,7 +65,7 @@ bool read_scene(Scene&out,const std::string&p,std::string&err){
  out=std::move(tmp);return true;
 }
 void collect(const Scene&s,EntityId id,std::vector<EntityId>&out){const auto*n=s.get(id);if(!n)return;out.push_back(id);for(EntityId c:n->children)collect(s,c,out);}
-}}
+}
 bool save_scene(const Scene&s,const std::string&p,std::string&e){if(s.nodes().size()>kMaxNodes||s.meshes.size()>kMaxMeshes||s.materials.size()>kMaxMeshes){e="Scene exceeds supported serialization limits";return false;}std::vector<EntityId>ids;ids.reserve(s.nodes().size());for(const auto&n:s.nodes())ids.push_back(n.id);if(!write_scene(s,p,ids)){e="Failed to write scene file";return false;}return true;}
 bool load_scene(Scene&s,const std::string&p,std::string&e){return read_scene(s,p,e);}
 bool save_prefab(const Scene&s,EntityId root,const std::string&p,std::string&e){if(!s.get(root)){e="Prefab root entity does not exist";return false;}std::vector<EntityId>ids;collect(s,root,ids);if(!write_scene(s,p,ids)){e="Failed to write prefab";return false;}return true;}
