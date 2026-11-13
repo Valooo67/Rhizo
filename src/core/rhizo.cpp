@@ -27,7 +27,7 @@ struct RhizoContext {
   std::string last_error;
   std::vector<RhizoBuffer*> buffers;
   rhizo::Scene scene;
-  rhizo::Animation animation;
+  rhizo::Animation animation;\n  rhizo::AnimationPlayer animation_player;
   uint32_t selected_entity=0,gizmo_mode=RHIZO_GIZMO_TRANSLATE;
   std::unique_ptr<rhizo::ShadowMap> shadow_map;
   RhizoRenderSettings render_settings{sizeof(RhizoRenderSettings),RHIZO_SHADOWS_MAPS,2048,0.0015f,0.01f,1.0f,1.0f,1.0f,1,1,1,1,{0,0,0,0}};
@@ -455,7 +455,32 @@ RhizoResult rhizo_scene_set_parameter_keyframe(RhizoContext*c,uint32_t id,uint32
   if(!c||!value)return RHIZO_ERROR_INVALID_ARGUMENT;
   return c->animation.set_parameter_key(id,property,time,{value[0],value[1],value[2],value[3]})?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;
 }
-RhizoResult rhizo_scene_set_material_info(RhizoContext*c,uint32_t i,const RhizoMaterialInfo*in){
+
+RhizoResult rhizo_scene_remove_keyframe(RhizoContext*c,uint32_t id,uint32_t property,double time){
+ if(!c||!std::isfinite(time)||time<0)return RHIZO_ERROR_INVALID_ARGUMENT;
+ if(property<=2)return c->animation.remove_key(id,static_cast<rhizo::TrackProperty>(property),time)?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;
+ return c->animation.remove_parameter_key(id,property,time)?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;
+}
+RhizoResult rhizo_scene_set_keyframe_interpolation(RhizoContext*c,uint32_t id,uint32_t property,uint32_t mode){
+ if(!c||property>2||mode>3)return RHIZO_ERROR_INVALID_ARGUMENT;
+ return c->animation.set_interpolation(id,static_cast<rhizo::TrackProperty>(property),static_cast<rhizo::Interpolation>(mode))?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;
+}
+RhizoResult rhizo_scene_set_parameter_interpolation(RhizoContext*c,uint32_t id,uint32_t property,uint32_t mode){
+ if(!c||mode>3)return RHIZO_ERROR_INVALID_ARGUMENT;
+ return c->animation.set_parameter_interpolation(id,property,static_cast<rhizo::Interpolation>(mode))?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;
+}
+RhizoResult rhizo_animation_play(RhizoContext*c,uint8_t restart){
+ if(!c)return RHIZO_ERROR_INVALID_ARGUMENT;c->animation_player.bind(&c->animation);c->animation_player.play(restart!=0);return RHIZO_SUCCESS;
+}
+RhizoResult rhizo_animation_pause(RhizoContext*c){if(!c)return RHIZO_ERROR_INVALID_ARGUMENT;c->animation_player.pause();return RHIZO_SUCCESS;}
+RhizoResult rhizo_animation_stop(RhizoContext*c){if(!c)return RHIZO_ERROR_INVALID_ARGUMENT;c->animation_player.stop();return RHIZO_SUCCESS;}
+RhizoResult rhizo_animation_seek(RhizoContext*c,double time){if(!c||!std::isfinite(time)||time<0)return RHIZO_ERROR_INVALID_ARGUMENT;c->animation_player.bind(&c->animation);c->animation_player.seek(time);return c->animation_player.evaluate(c->scene)?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;}
+RhizoResult rhizo_animation_set_speed(RhizoContext*c,double speed){if(!c||!std::isfinite(speed)||speed==0||std::abs(speed)>8)return RHIZO_ERROR_INVALID_ARGUMENT;c->animation_player.set_speed(speed);return RHIZO_SUCCESS;}
+RhizoResult rhizo_animation_set_mode(RhizoContext*c,uint32_t mode){if(!c||mode>2)return RHIZO_ERROR_INVALID_ARGUMENT;c->animation_player.set_mode(static_cast<rhizo::PlaybackMode>(mode));return RHIZO_SUCCESS;}
+RhizoResult rhizo_animation_tick(RhizoContext*c,double delta){if(!c||!std::isfinite(delta)||delta<0||delta>1.0)return RHIZO_ERROR_INVALID_ARGUMENT;c->animation_player.bind(&c->animation);return c->animation_player.tick(c->scene,delta)?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;}
+double rhizo_animation_get_time(const RhizoContext*c){return c?c->animation_player.time():0.0;}
+uint32_t rhizo_animation_get_key_count(const RhizoContext*c){return c?static_cast<uint32_t>(c->animation.key_count()):0;}
+\nRhizoResult rhizo_scene_set_material_info(RhizoContext*c,uint32_t i,const RhizoMaterialInfo*in){
  constexpr size_t legacySize=offsetof(RhizoMaterialInfo,normal_scale);
  if(!c||!in||in->struct_size<legacySize||i>=c->scene.materials.size())return RHIZO_ERROR_INVALID_ARGUMENT;
  const bool hasExtended=in->struct_size>=sizeof(RhizoMaterialInfo);const float normalScale=hasExtended?in->normal_scale:1.0f,occlusion=hasExtended?in->occlusion:1.0f;const float emissive[3]={hasExtended?in->emissive_color[0]:0.0f,hasExtended?in->emissive_color[1]:0.0f,hasExtended?in->emissive_color[2]:0.0f};
