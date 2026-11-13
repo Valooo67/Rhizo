@@ -14,7 +14,8 @@
 #include <cmath>
 #include <cstddef>
 #include <cstring>
-#include <memory>\n#include <map>
+#include <memory>
+#include <map>
 #include <new>
 #include <string>
 #include <unordered_map>
@@ -29,7 +30,9 @@ struct RhizoContext {
   std::vector<RhizoBuffer*> buffers;
   rhizo::Scene scene;
   rhizo::Animation animation;
-  rhizo::AnimationPlayer animation_player;\n  std::map<uint32_t,rhizo::Animation> animation_clips;\n  rhizo::AnimationStateMachine animation_state_machine;
+  rhizo::AnimationPlayer animation_player;
+  std::map<uint32_t,rhizo::Animation> animation_clips;
+  rhizo::AnimationStateMachine animation_state_machine;
   std::unordered_map<uint32_t,rhizo::Vec3> camera_shake_origins;
   uint32_t selected_entity=0,gizmo_mode=RHIZO_GIZMO_TRANSLATE;
   std::unique_ptr<rhizo::ShadowMap> shadow_map;
@@ -507,7 +510,8 @@ RhizoResult rhizo_animation_state_play(RhizoContext*c,uint32_t state,uint8_t res
 RhizoResult rhizo_animation_state_tick(RhizoContext*c,double delta){
  if(!c||!std::isfinite(delta)||delta<0||delta>1.0)return RHIZO_ERROR_INVALID_ARGUMENT;return c->animation_state_machine.update(c->scene,delta)?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;
 }
-\nRhizoResult rhizo_scene_look_at(RhizoContext*c,uint32_t entity,uint32_t target,float weight){
+
+RhizoResult rhizo_scene_look_at(RhizoContext*c,uint32_t entity,uint32_t target,float weight){
  if(!c||!std::isfinite(weight))return RHIZO_ERROR_INVALID_ARGUMENT;return rhizo::solve_look_at(c->scene,entity,target,weight)?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;
 }
 RhizoResult rhizo_scene_solve_two_bone_ik(RhizoContext*c,uint32_t root,uint32_t middle,uint32_t end,const float target[3],const float pole[3],float weight){
