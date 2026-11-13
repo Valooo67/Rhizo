@@ -63,7 +63,39 @@ bool AnimationPlayer::evaluate(Scene&scene)const{return animation_&&animation_->
 bool AnimationPlayer::tick(Scene&scene,double delta){if(!animation_||!std::isfinite(delta)||delta<0)return false;if(playing_){const double duration=animation_->duration();if(duration<=0){time_=0;playing_=false;}else{time_+=delta*speed_*static_cast<double>(direction_);if(mode_==PlaybackMode::Loop){time_=std::fmod(time_,duration);if(time_<0)time_+=duration;}else if(mode_==PlaybackMode::PingPong){while(time_<0||time_>duration){if(time_>duration){time_=duration-(time_-duration);direction_=-direction_;}else{time_=-time_;direction_=-direction_;}}}else if(time_>=duration||time_<=0){time_=std::clamp(time_,0.0,duration);playing_=false;}}}return evaluate(scene);}
 bool AnimationStateMachine::add_state(std::string name,const Animation*animation,double speed){if(name.empty()||!animation||!std::isfinite(speed)||speed==0)return false;states_[name]={name,animation,speed};if(current_.empty())play(name);return true;}
 bool AnimationStateMachine::set_transition(const std::string&from,const std::string&to,double duration){if(!states_.contains(from)||!states_.contains(to)||!std::isfinite(duration)||duration<0)return false;transitions_[from+"\n"+to]=duration;return true;}
-bool AnimationStateMachine::play(const std::string&state,bool restart){auto it=states_.find(state);if(it==states_.end())return false;current_=state;player_.bind(it->second.animation);player_.set_speed(it->second.speed);player_.play(restart);transition_={};return true;}
-bool AnimationStateMachine::update(Scene&scene,double delta){if(!std::isfinite(delta)||delta<0)return false;return player_.tick(scene,delta);}
+bool AnimationStateMachine::play(const std::string&state,bool restart){
+ auto it=states_.find(state);if(it==states_.end())return false;if(state==current_&&!restart)return true;
+ double fade=0.0;if(!current_.empty()){auto tr=transitions_.find(current_+"\\n"+state);if(tr!=transitions_.end())fade=tr->second;}
+ if(fade>0.0&&player_.playing()){outgoing_player_=player_;blending_=true;transition_={current_,state,fade,0.0};}else{blending_=false;transition_={};}
+ current_=state;player_.bind(it->second.animation);player_.set_speed(it->second.speed);player_.play(restart);return true;
+}
+bool AnimationStateMachine::update(Scene&scene,double delta){
+ if(!std::isfinite(delta)||delta<0)return false;
+ if(!blending_)return player_.tick(scene,delta);
+ Scene from=scene,to=scene;outgoing_player_.tick(from,delta);player_.tick(to,delta);
+ transition_.elapsed=std::min(transition_.duration,transition_.elapsed+delta);const float w=static_cast<float>(transition_progress());
+ auto&dst=scene.nodes();const auto&aa=from.nodes();const auto&bb=to.nodes();
+ for(size_t i=0;i<dst.size()&&i<aa.size()&&i<bb.size();++i){dst[i].local.position=aa[i].local.position+(bb[i].local.position-aa[i].local.position)*w;dst[i].local.scale=aa[i].local.scale+(bb[i].local.scale-aa[i].local.scale)*w;dst[i].local.rotation=slerp(aa[i].local.rotation,bb[i].local.rotation,w);
+  if(dst[i].has_camera&&aa[i].has_camera&&bb[i].has_camera){dst[i].camera.vertical_fov=aa[i].camera.vertical_fov+(bb[i].camera.vertical_fov-aa[i].camera.vertical_fov)*w;dst[i].camera.near_plane=aa[i].camera.near_plane+(bb[i].camera.near_plane-aa[i].camera.near_plane)*w;dst[i].camera.far_plane=aa[i].camera.far_plane+(bb[i].camera.far_plane-aa[i].camera.far_plane)*w;dst[i].camera.orthographic_size=aa[i].camera.orthographic_size+(bb[i].camera.orthographic_size-aa[i].camera.orthographic_size)*w;}
+  if(dst[i].has_light&&aa[i].has_light&&bb[i].has_light){dst[i].light.intensity=aa[i].light.intensity+(bb[i].light.intensity-aa[i].light.intensity)*w;dst[i].light.range=aa[i].light.range+(bb[i].light.range-aa[i].light.range)*w;dst[i].light.color=aa[i].light.color+(bb[i].light.color-aa[i].light.color)*w;}
+ }
+ for(size_t i=0;i<scene.materials.size()&&i<from.materials.size()&&i<to.materials.size();++i){auto&m=scene.materials[i];const auto&a=from.materials[i];const auto&b=to.materials[i];m.base_color=mix4(a.base_color,b.base_color,w);m.metallic=a.metallic+(b.metallic-a.metallic)*w;m.roughness=a.roughness+(b.roughness-a.roughness)*w;}
+ if(w>=1.0f)blending_=false;return true;
+}
 double AnimationStateMachine::transition_progress()const{return transition_.duration>0?std::clamp(transition_.elapsed/transition_.duration,0.0,1.0):1.0;}
+
+namespace {
+Quat multiply_quat(Quat a,Quat b){return {a.w*b.x+a.x*b.w+a.y*b.z-a.z*b.y,a.w*b.y-a.x*b.z+a.y*b.w+a.z*b.x,a.w*b.z+a.x*b.y-a.y*b.x+a.z*b.w,a.w*b.w-a.x*b.x-a.y*b.y-a.z*b.z};}
+Quat from_to(Vec3 a,Vec3 b){a=normalize(a);b=normalize(b);const float d=std::clamp(dot(a,b),-1.0f,1.0f);if(d>0.99999f)return Quat::identity();if(d<-0.99999f){Vec3 axis=normalize(cross(a,std::fabs(a.x)<0.8f?Vec3{1,0,0}:Vec3{0,1,0}));return {axis.x,axis.y,axis.z,0};}const Vec3 c=cross(a,b);const float s=std::sqrt((1.0f+d)*2.0f),inv=1.0f/s;return {c.x*inv,c.y*inv,c.z*inv,s*0.5f};}
+Vec3 matrix_position(const Mat4&m){return {m.v[12],m.v[13],m.v[14]};}
+}
+bool solve_look_at(Scene&scene,EntityId entity,EntityId target,float weight){
+ auto*n=scene.get(entity);auto*t=scene.get(target);if(!n||!t||entity==target||!std::isfinite(weight))return false;weight=std::clamp(weight,0.0f,1.0f);const Vec3 origin=matrix_position(scene.world_matrix(entity)),destination=matrix_position(scene.world_matrix(target));const Vec3 direction=destination-origin;if(length(direction)<1.0e-5f)return false;const Mat4 world=scene.world_matrix(entity);const Vec3 forward=normalize({-world.v[8],-world.v[9],-world.v[10]});const Quat delta=from_to(forward,direction);n->local.rotation=slerp(n->local.rotation,multiply_quat(delta,n->local.rotation),weight);return true;
+}
+bool solve_two_bone_ik(Scene&scene,EntityId root,EntityId middle,EntityId end,Vec3 target,Vec3 pole,float weight){
+ auto*r=scene.get(root);auto*m=scene.get(middle);auto*e=scene.get(end);if(!r||!m||!e||!std::isfinite(weight)||root==middle||middle==end)return false;weight=std::clamp(weight,0.0f,1.0f);if(weight<=0)return true;
+ Vec3 rp=matrix_position(scene.world_matrix(root)),mp=matrix_position(scene.world_matrix(middle)),ep=matrix_position(scene.world_matrix(end));const float l1=length(mp-rp),l2=length(ep-mp);Vec3 to=target-rp;float d=length(to);if(l1<1e-5f||l2<1e-5f||d<1e-5f)return false;const Vec3 dir=to/d;d=std::clamp(d,std::fabs(l1-l2)+1e-4f,l1+l2-1e-4f);Vec3 bend=pole-rp-dir*dot(pole-rp,dir);if(length(bend)<1e-5f)bend=cross(dir,{0,1,0});if(length(bend)<1e-5f)bend=cross(dir,{1,0,0});bend=normalize(bend);const float along=(d*d+l1*l1-l2*l2)/(2.0f*d),height=std::sqrt(std::max(0.0f,l1*l1-along*along));const Vec3 desired=rp+dir*along+bend*height;
+ const Quat rootDelta=from_to(mp-rp,desired-rp);r->local.rotation=slerp(r->local.rotation,multiply_quat(rootDelta,r->local.rotation),weight);
+ mp=matrix_position(scene.world_matrix(middle));ep=matrix_position(scene.world_matrix(end));const Quat midDelta=from_to(ep-mp,target-mp);m->local.rotation=slerp(m->local.rotation,multiply_quat(midDelta,m->local.rotation),weight);return true;
+}
 } // namespace rhizo
