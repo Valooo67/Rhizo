@@ -6,7 +6,6 @@ layout(set=0,binding=1) uniform sampler2D shadowDepth[10];layout(set=0,binding=2
 const float PI=3.14159265359;
 vec2 shadowTexelSize(int index){if(index==4||index==5||index==6||index==7||index==8||index==9)return 1.0/vec2(textureSize(shadowDepth[4],0));return 1.0/vec2(textureSize(shadowDepth[0],0));}
 float sampleShadowDepth(int index,vec2 coordinates){if(index==0)return texture(shadowDepth[0],coordinates).r;if(index==1)return texture(shadowDepth[1],coordinates).r;if(index==2)return texture(shadowDepth[2],coordinates).r;if(index==3)return texture(shadowDepth[3],coordinates).r;if(index==4)return texture(shadowDepth[4],coordinates).r;if(index==5)return texture(shadowDepth[5],coordinates).r;if(index==6)return texture(shadowDepth[6],coordinates).r;if(index==7)return texture(shadowDepth[7],coordinates).r;if(index==8)return texture(shadowDepth[8],coordinates).r;return texture(shadowDepth[9],coordinates).r;}
-vec3 acesToneMap(vec3 x){return clamp((x*(2.51*x+0.03))/(x*(2.43*x+0.59)+0.14),0.0,1.0);}
 float Dggx(vec3 N,vec3 H,float r){float a=r*r,a2=a*a,n=max(dot(N,H),0.0),d=n*n*(a2-1.0)+1.0;return a2/max(PI*d*d,0.0001);}
 float Gschlick(float n,float r){float k=(r+1.0)*(r+1.0)/8.0;return n/(n*(1.0-k)+k);}
 vec3 Fschlick(float h,vec3 f0){return f0+(1.0-f0)*pow(clamp(1.0-h,0.0,1.0),5.0);}
