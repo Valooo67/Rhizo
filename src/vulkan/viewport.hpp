@@ -36,7 +36,8 @@ class Viewport final {
     const uint32_t* source_indices=nullptr;
     size_t vertex_count=0,index_count=0;
     Vec4 base_color{};
-    float metallic=-1.0f,roughness=-1.0f;
+    float metallic=-1.0f,roughness=-1.0f,normal_scale=-1.0f,occlusion=-1.0f;
+    Vec3 emissive_color{};
     Vec3 bounds_center{};
     float bounds_radius=0.0f;
   };

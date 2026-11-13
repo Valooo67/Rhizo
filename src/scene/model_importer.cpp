@@ -113,6 +113,7 @@ bool import_model(Scene&scene,const std::string&path,const std::string&cache,Imp
   else if(aiGetMaterialColor(src,AI_MATKEY_COLOR_DIFFUSE,&c)==AI_SUCCESS)m.base_color={c.r,c.g,c.b,c.a};
   float f=0;if(src->Get(AI_MATKEY_METALLIC_FACTOR,f)==AI_SUCCESS)m.metallic=f;
   if(src->Get(AI_MATKEY_ROUGHNESS_FACTOR,f)==AI_SUCCESS)m.roughness=f;
+  aiColor3D emissiveColor;if(src->Get(AI_MATKEY_COLOR_EMISSIVE,emissiveColor)==AI_SUCCESS)m.emissive_color={emissiveColor.r,emissiveColor.g,emissiveColor.b};
   aiString tex;
   if(src->GetTexture(aiTextureType_BASE_COLOR,0,&tex)==AI_SUCCESS||src->GetTexture(aiTextureType_DIFFUSE,0,&tex)==AI_SUCCESS)m.base_color_texture=resolve_texture(in,actual.parent_path(),fs::path(cache),tex);
   if(src->GetTexture(aiTextureType_NORMALS,0,&tex)==AI_SUCCESS||src->GetTexture(aiTextureType_HEIGHT,0,&tex)==AI_SUCCESS)m.normal_texture=resolve_texture(in,actual.parent_path(),fs::path(cache),tex);

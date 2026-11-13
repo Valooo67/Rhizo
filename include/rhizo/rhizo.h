@@ -79,6 +79,7 @@ typedef struct RhizoMaterialInfo {
   uint32_t struct_size;
   float base_color[4],metallic,roughness;
   char base_color_texture[512],normal_texture[512],metallic_roughness_texture[512],emissive_texture[512];
+  float normal_scale,occlusion,emissive_color[3];
 } RhizoMaterialInfo;
 RHIZO_API uint32_t rhizo_get_abi_version(void);
 RHIZO_API RhizoResult rhizo_create(const RhizoCreateInfo*,RhizoContext**);
@@ -133,6 +134,7 @@ RHIZO_API uint32_t rhizo_editor_gizmo_vertex_count(void);
 RHIZO_API RhizoResult rhizo_editor_gizmo_vertices(const float[3],float,RhizoEditorVertex*,uint32_t);
 
 RHIZO_API RhizoResult rhizo_scene_get_material_info(const RhizoContext*,uint32_t,RhizoMaterialInfo*);
+RHIZO_API RhizoResult rhizo_scene_set_material_info(RhizoContext*,uint32_t,const RhizoMaterialInfo*);
 #ifdef __cplusplus
 }
 #endif

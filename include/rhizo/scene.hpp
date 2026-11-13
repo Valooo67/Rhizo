@@ -15,6 +15,7 @@ struct LightComponent { LightType type=LightType::Directional; Vec3 color{1,1,1}
 struct Material {
   Vec4 base_color{0.8f,0.8f,0.8f,1};
   float metallic=0, roughness=0.7f, normal_scale=1, occlusion=1;
+  Vec3 emissive_color{0,0,0};
   std::string base_color_texture, normal_texture, metallic_roughness_texture, emissive_texture;
 };
 struct Vertex { Vec3 position,normal; Vec2 uv; Vec4 tangent{1,0,0,1}; };

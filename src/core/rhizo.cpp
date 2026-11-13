@@ -391,7 +391,7 @@ RhizoResult rhizo_scene_get_mesh_info(const RhizoContext*c,uint32_t i,RhizoMeshI
 uint32_t rhizo_scene_get_material_count(const RhizoContext*c){return c?static_cast<uint32_t>(c->scene.materials.size()):0;}
 RhizoResult rhizo_scene_get_material_info(const RhizoContext*c,uint32_t i,RhizoMaterialInfo*out){
   if(!c||!out||out->struct_size<sizeof(RhizoMaterialInfo)||i>=c->scene.materials.size())return RHIZO_ERROR_INVALID_ARGUMENT;
-  const auto&m=c->scene.materials[i];out->base_color[0]=m.base_color.x;out->base_color[1]=m.base_color.y;out->base_color[2]=m.base_color.z;out->base_color[3]=m.base_color.w;out->metallic=m.metallic;out->roughness=m.roughness;
+  const auto&m=c->scene.materials[i];out->base_color[0]=m.base_color.x;out->base_color[1]=m.base_color.y;out->base_color[2]=m.base_color.z;out->base_color[3]=m.base_color.w;out->metallic=m.metallic;out->roughness=m.roughness;out->normal_scale=m.normal_scale;out->occlusion=m.occlusion;out->emissive_color[0]=m.emissive_color.x;out->emissive_color[1]=m.emissive_color.y;out->emissive_color[2]=m.emissive_color.z;
   auto cp=[](char*d,size_t n,const std::string&s){std::memset(d,0,n);std::strncpy(d,s.c_str(),n-1);};
   cp(out->base_color_texture,sizeof(out->base_color_texture),m.base_color_texture);cp(out->normal_texture,sizeof(out->normal_texture),m.normal_texture);cp(out->metallic_roughness_texture,sizeof(out->metallic_roughness_texture),m.metallic_roughness_texture);cp(out->emissive_texture,sizeof(out->emissive_texture),m.emissive_texture);return RHIZO_SUCCESS;
 }
@@ -450,5 +450,14 @@ RhizoResult rhizo_scene_get_light(const RhizoContext*c,uint32_t id,RhizoLightInf
 RhizoResult rhizo_scene_set_parameter_keyframe(RhizoContext*c,uint32_t id,uint32_t property,double time,const float value[4]){
   if(!c||!value)return RHIZO_ERROR_INVALID_ARGUMENT;
   return c->animation.set_parameter_key(id,property,time,{value[0],value[1],value[2],value[3]})?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;
+}
+RhizoResult rhizo_scene_set_material_info(RhizoContext*c,uint32_t i,const RhizoMaterialInfo*in){
+ if(!c||!in||in->struct_size<sizeof(RhizoMaterialInfo)||i>=c->scene.materials.size())return RHIZO_ERROR_INVALID_ARGUMENT;
+ const float values[]={in->base_color[0],in->base_color[1],in->base_color[2],in->base_color[3],in->metallic,in->roughness,in->normal_scale,in->occlusion,in->emissive_color[0],in->emissive_color[1],in->emissive_color[2]};for(float v:values)if(!std::isfinite(v))return RHIZO_ERROR_INVALID_ARGUMENT;
+ if(in->metallic<0||in->metallic>1||in->roughness<0||in->roughness>1||in->normal_scale<0||in->normal_scale>16||in->occlusion<0||in->occlusion>1)return RHIZO_ERROR_INVALID_ARGUMENT;
+ for(float v:in->base_color)if(v<0||v>1)return RHIZO_ERROR_INVALID_ARGUMENT;for(float v:in->emissive_color)if(v<0)return RHIZO_ERROR_INVALID_ARGUMENT;
+ auto read=[](const char*s,size_t n,std::string&out){const void*end=std::memchr(s,0,n);if(!end)return false;out.assign(s,static_cast<const char*>(end)-s);return true;};
+ std::string paths[4];if(!read(in->base_color_texture,sizeof(in->base_color_texture),paths[0])||!read(in->normal_texture,sizeof(in->normal_texture),paths[1])||!read(in->metallic_roughness_texture,sizeof(in->metallic_roughness_texture),paths[2])||!read(in->emissive_texture,sizeof(in->emissive_texture),paths[3]))return RHIZO_ERROR_INVALID_ARGUMENT;
+ auto&m=c->scene.materials[i];m.base_color={in->base_color[0],in->base_color[1],in->base_color[2],in->base_color[3]};m.metallic=in->metallic;m.roughness=in->roughness;m.normal_scale=in->normal_scale;m.occlusion=in->occlusion;m.emissive_color={in->emissive_color[0],in->emissive_color[1],in->emissive_color[2]};m.base_color_texture=std::move(paths[0]);m.normal_texture=std::move(paths[1]);m.metallic_roughness_texture=std::move(paths[2]);m.emissive_texture=std::move(paths[3]);return RHIZO_SUCCESS;
 }
 }  // extern "C"
