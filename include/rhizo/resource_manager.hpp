@@ -1,5 +1,5 @@
 #pragma once
-#include "rhizo/scene.hpp"
+#include "rhizo/scene.hpp"\n#include "rhizo/animation.hpp"
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -9,7 +9,7 @@
 namespace rhizo {
 enum class AssetType:uint32_t { Unknown=0,Texture=1,Model=2,Scene=3,Prefab=4,Audio=5,Shader=6 };
 struct TextureResource { uint32_t width=0,height=0;std::vector<uint8_t> rgba;std::string source; };
-struct ModelResource { Scene scene;std::string source; };
+struct ModelResource { Scene scene;std::vector<AnimationClip> animations;std::string source; };
 struct AssetRecord { uint64_t id=0;AssetType type=AssetType::Unknown;std::string path;uint64_t size=0,modified=0; };
 class AssetManager {
  public:
