@@ -1,5 +1,6 @@
 #pragma once
-#include "rhizo/scene.hpp"\n#include "rhizo/animation.hpp"
+#include "rhizo/scene.hpp"
+#include "rhizo/animation.hpp"
 #include <cstdint>
 #include <memory>
 #include <string>
