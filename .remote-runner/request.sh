@@ -23,6 +23,7 @@ git rev-parse HEAD
 git status --short
 echo "Stage 3 final source revision: $(git rev-parse HEAD)"
 echo "GPU skinning + morph palette declaration included"
+echo "Final snapshot and serialization guards included"
 nproc
 free -h
 df -h .
