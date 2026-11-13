@@ -135,7 +135,7 @@ RHIZO_API uint32_t rhizo_animation_get_key_count(const RhizoContext*);
 RHIZO_API RhizoResult rhizo_scene_look_at(RhizoContext*,uint32_t,uint32_t,float);
 RHIZO_API RhizoResult rhizo_scene_solve_two_bone_ik(RhizoContext*,uint32_t,uint32_t,uint32_t,const float[3],const float[3],float);
 RHIZO_API RhizoResult rhizo_camera_shake(RhizoContext*,uint32_t,double,float,float);
-RHIZO_API RhizoResult rhizo_camera_shake_clear(RhizoContext*,uint32_t);
+RHIZO_API RhizoResult rhizo_camera_shake_clear(RhizoContext*,uint32_t);\nRHIZO_API RhizoResult rhizo_animation_clip_create(RhizoContext*,uint32_t);\nRHIZO_API RhizoResult rhizo_animation_clip_set_keyframe(RhizoContext*,uint32_t,uint32_t,uint32_t,double,const RhizoTransform*);\nRHIZO_API RhizoResult rhizo_animation_clip_set_parameter_keyframe(RhizoContext*,uint32_t,uint32_t,uint32_t,double,const float[4]);\nRHIZO_API RhizoResult rhizo_animation_state_add(RhizoContext*,uint32_t,uint32_t,double);\nRHIZO_API RhizoResult rhizo_animation_state_transition(RhizoContext*,uint32_t,uint32_t,double);\nRHIZO_API RhizoResult rhizo_animation_state_play(RhizoContext*,uint32_t,uint8_t);\nRHIZO_API RhizoResult rhizo_animation_state_tick(RhizoContext*,double);
 RHIZO_API RhizoResult rhizo_scene_import_model(RhizoContext*,const char*,const char*,RhizoImportReport*);
 RHIZO_API uint32_t rhizo_scene_get_mesh_count(const RhizoContext*);
 RHIZO_API RhizoResult rhizo_scene_get_mesh_info(const RhizoContext*,uint32_t,RhizoMeshInfo*);
