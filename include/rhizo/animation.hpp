@@ -62,7 +62,7 @@ class AnimationStateMachine {
   bool play(const std::string& state,bool restart=true);
   bool update(Scene& scene,double delta_seconds);
   const std::string& current_state()const{return current_;}
-  double transition_progress()const;
+  double transition_progress()const;\n
  private:
   struct Transition { std::string from,to; double duration=0,elapsed=0; };
   std::unordered_map<std::string,AnimationState> states_;
