@@ -49,7 +49,9 @@ class Viewport final {
   struct MaterialGpuCache { std::array<std::unique_ptr<FrameTexture>,4> textures; std::array<std::string,4> paths; VkDescriptorSet descriptor=VK_NULL_HANDLE; bool initialized=false; };
   struct DrawItem { const Mesh* mesh=nullptr; Mat4 model=Mat4::identity(); uint32_t meshIndex=0; EntityId entity=0; VkDescriptorSet skin_descriptor=VK_NULL_HANDLE,morph_descriptor=VK_NULL_HANDLE; bool skinned=false,morphed=false; };
   struct SkinGpuCache { EntityId entity=0; uint32_t mesh_index=0,bone_count=0; std::unique_ptr<GpuBuffer> matrices; VkDescriptorSet descriptor=VK_NULL_HANDLE; };
-  std::vector<SkinGpuCache> skin_cache_;\n  struct MorphGpuCache { EntityId entity=0; uint32_t mesh_index=0; std::unique_ptr<GpuBuffer> data; VkDescriptorSet descriptor=VK_NULL_HANDLE; };\n  std::vector<MorphGpuCache> morph_cache_;
+  std::vector<SkinGpuCache> skin_cache_;
+  struct MorphGpuCache { EntityId entity=0; uint32_t mesh_index=0; std::unique_ptr<GpuBuffer> data; VkDescriptorSet descriptor=VK_NULL_HANDLE; };
+  std::vector<MorphGpuCache> morph_cache_;
   std::vector<DrawItem> draw_items_;
   std::vector<std::array<std::vector<Mat4>,3>> instance_batches_;
   VkDescriptorSetLayout material_set_layout_=VK_NULL_HANDLE,skin_set_layout_=VK_NULL_HANDLE,morph_set_layout_=VK_NULL_HANDLE;
