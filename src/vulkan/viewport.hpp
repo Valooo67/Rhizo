@@ -3,6 +3,7 @@
 #include "rhizo/scene.hpp"
 #include "rhizo/rhizo.h"
 #include "rhizo/shadow_map.hpp"
+#include "frame_texture.hpp"
 #include <android/native_window.h>
 #include <vector>
 #include <memory>
@@ -26,6 +27,7 @@ class Viewport final {
   bool ensure_shadow_map(std::string&);
   bool create_scene_descriptors(std::string&);
   void update_scene_descriptors();
+  bool ensure_material_descriptors(const Scene&,std::string&);
   void destroy_pipeline() noexcept;
   void destroy_swapchain() noexcept;
   struct MeshGpuCache {
@@ -38,8 +40,13 @@ class Viewport final {
     Vec3 bounds_center{};
     float bounds_radius=0.0f;
   };
+  struct MaterialGpuCache { std::array<std::unique_ptr<FrameTexture>,4> textures; std::array<std::string,4> paths; VkDescriptorSet descriptor=VK_NULL_HANDLE; bool initialized=false; };
   struct DrawItem { const Mesh* mesh=nullptr; Mat4 model=Mat4::identity(); uint32_t meshIndex=0; };
   std::vector<DrawItem> draw_items_;
+  VkDescriptorSetLayout material_set_layout_=VK_NULL_HANDLE;
+  VkDescriptorPool material_descriptor_pool_=VK_NULL_HANDLE;
+  std::vector<MaterialGpuCache> material_cache_;
+  std::array<std::unique_ptr<FrameTexture>,4> default_textures_;
   VulkanContext* context_=nullptr;
   ANativeWindow* window_=nullptr;
   VkSurfaceKHR surface_=VK_NULL_HANDLE;

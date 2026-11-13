@@ -11,6 +11,7 @@ class FrameTexture final {
   FrameTexture& operator=(const FrameTexture&)=delete;
   FrameTexture()=default;
   bool upload(VulkanContext&,VkBuffer,uint32_t,uint32_t,uint32_t,bool,std::string&);
+  bool upload_rgba8(VulkanContext&,const uint8_t*,uint32_t,uint32_t,std::string&);
   void destroy() noexcept;
   VkImageView view()const noexcept{return view_;}
   VkSampler sampler()const noexcept{return sampler_;}
