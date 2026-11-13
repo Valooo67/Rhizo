@@ -29,7 +29,7 @@ std::shared_ptr<const TextureResource>ResourceManager::load_texture(const std::s
 }
 std::shared_ptr<const ModelResource>ResourceManager::load_model(const std::string&path,const std::string&cache,std::string&error){
  const std::string key=normalized(path);auto i=models_.find(key);if(i!=models_.end())return i->second;
- auto value=std::make_shared<ModelResource>();value->source=key;ImportReport report;if(!import_model(value->scene,key,cache,report,error))return {};
+ auto value=std::make_shared<ModelResource>();value->source=key;ImportReport report;if(!import_model(value->scene,key,cache,report,error,&value->animations))return {};
  models_[key]=value;return value;
 }
 void ResourceManager::collect_unused(){for(auto i=textures_.begin();i!=textures_.end();)if(i->second.use_count()==1)i=textures_.erase(i);else ++i;for(auto i=models_.begin();i!=models_.end();)if(i->second.use_count()==1)i=models_.erase(i);else ++i;}
