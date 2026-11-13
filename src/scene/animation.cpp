@@ -94,6 +94,19 @@ namespace {
 Quat multiply_quat(Quat a,Quat b){return {a.w*b.x+a.x*b.w+a.y*b.z-a.z*b.y,a.w*b.y-a.x*b.z+a.y*b.w+a.z*b.x,a.w*b.z+a.x*b.y-a.y*b.x+a.z*b.w,a.w*b.w-a.x*b.x-a.y*b.y-a.z*b.z};}
 Quat from_to(Vec3 a,Vec3 b){a=normalize(a);b=normalize(b);const float d=std::clamp(dot(a,b),-1.0f,1.0f);if(d>0.99999f)return Quat::identity();if(d<-0.99999f){Vec3 axis=normalize(cross(a,std::fabs(a.x)<0.8f?Vec3{1,0,0}:Vec3{0,1,0}));return {axis.x,axis.y,axis.z,0};}const Vec3 c=cross(a,b);const float s=std::sqrt((1.0f+d)*2.0f),inv=1.0f/s;return {c.x*inv,c.y*inv,c.z*inv,s*0.5f};}
 Vec3 matrix_position(const Mat4&m){return {m.v[12],m.v[13],m.v[14]};}
+Quat conjugate(Quat q){return {-q.x,-q.y,-q.z,q.w};}
+Quat normalized_quat(Quat q){const float n=std::sqrt(q.x*q.x+q.y*q.y+q.z*q.z+q.w*q.w);return n>1.0e-8f?Quat{q.x/n,q.y/n,q.z/n,q.w/n}:Quat::identity();}
+Quat world_rotation(const Scene&scene,EntityId id){return normalized_quat(quat_from_matrix(scene.world_matrix(id)));}
+Quat quat_from_matrix(const Mat4&m){
+ Vec3 x=normalize({m.v[0],m.v[1],m.v[2]}),y=normalize({m.v[4],m.v[5],m.v[6]}),z=normalize({m.v[8],m.v[9],m.v[10]});
+ const float m00=x.x,m01=y.x,m02=z.x,m10=x.y,m11=y.y,m12=z.y,m20=x.z,m21=y.z,m22=z.z,trace=m00+m11+m22;Quat q;
+ if(trace>0){const float t=std::sqrt(trace+1.0f)*2.0f;q.w=0.25f*t;q.x=(m21-m12)/t;q.y=(m02-m20)/t;q.z=(m10-m01)/t;}
+ else if(m00>m11&&m00>m22){const float t=std::sqrt(1.0f+m00-m11-m22)*2.0f;q.w=(m21-m12)/t;q.x=0.25f*t;q.y=(m01+m10)/t;q.z=(m02+m20)/t;}
+ else if(m11>m22){const float t=std::sqrt(1.0f+m11-m00-m22)*2.0f;q.w=(m02-m20)/t;q.x=(m01+m10)/t;q.y=0.25f*t;q.z=(m12+m21)/t;}
+ else{const float t=std::sqrt(1.0f+m22-m00-m11)*2.0f;q.w=(m10-m01)/t;q.x=(m02+m20)/t;q.y=(m12+m21)/t;q.z=0.25f*t;}
+ return normalized_quat(q);
+}
+void set_world_rotation(Scene&scene,SceneNode&node,Quat desired,float weight){const Quat current=world_rotation(scene,node.id);const Quat blended=slerp(current,desired,std::clamp(weight,0.0f,1.0f));const Quat parent=node.parent?world_rotation(scene,node.parent):Quat::identity();node.local.rotation=normalized_quat(multiply_quat(conjugate(parent),blended));}
 }
 
 bool retarget_animation(const Animation&source,const std::unordered_map<EntityId,EntityId>&mapping,Animation&destination){
@@ -103,12 +116,12 @@ bool retarget_animation(const Animation&source,const std::unordered_map<EntityId
  destination=std::move(result);return true;
 }
 bool solve_look_at(Scene&scene,EntityId entity,EntityId target,float weight){
- auto*n=scene.get(entity);auto*t=scene.get(target);if(!n||!t||entity==target||!std::isfinite(weight))return false;weight=std::clamp(weight,0.0f,1.0f);const Vec3 origin=matrix_position(scene.world_matrix(entity)),destination=matrix_position(scene.world_matrix(target));const Vec3 direction=destination-origin;if(length(direction)<1.0e-5f)return false;const Mat4 world=scene.world_matrix(entity);const Vec3 forward=normalize({-world.v[8],-world.v[9],-world.v[10]});const Quat delta=from_to(forward,direction);n->local.rotation=slerp(n->local.rotation,multiply_quat(delta,n->local.rotation),weight);return true;
+ auto*n=scene.get(entity);auto*t=scene.get(target);if(!n||!t||entity==target||!std::isfinite(weight))return false;weight=std::clamp(weight,0.0f,1.0f);const Vec3 origin=matrix_position(scene.world_matrix(entity)),destination=matrix_position(scene.world_matrix(target));const Vec3 direction=destination-origin;if(length(direction)<1.0e-5f)return false;const Mat4 world=scene.world_matrix(entity);const Vec3 forward=normalize({-world.v[8],-world.v[9],-world.v[10]});const Quat delta=from_to(forward,direction);set_world_rotation(scene,*n,multiply_quat(delta,world_rotation(scene,entity)),weight);return true;
 }
 bool solve_two_bone_ik(Scene&scene,EntityId root,EntityId middle,EntityId end,Vec3 target,Vec3 pole,float weight){
- auto*r=scene.get(root);auto*m=scene.get(middle);auto*e=scene.get(end);if(!r||!m||!e||!std::isfinite(weight)||root==middle||middle==end)return false;weight=std::clamp(weight,0.0f,1.0f);if(weight<=0)return true;
+ auto*r=scene.get(root);auto*m=scene.get(middle);auto*e=scene.get(end);if(!r||!m||!e||!std::isfinite(weight)||root==middle||middle==end||m->parent!=root||e->parent!=middle)return false;weight=std::clamp(weight,0.0f,1.0f);if(weight<=0)return true;
  Vec3 rp=matrix_position(scene.world_matrix(root)),mp=matrix_position(scene.world_matrix(middle)),ep=matrix_position(scene.world_matrix(end));const float l1=length(mp-rp),l2=length(ep-mp);Vec3 to=target-rp;float d=length(to);if(l1<1e-5f||l2<1e-5f||d<1e-5f)return false;const Vec3 dir=to/d;d=std::clamp(d,std::fabs(l1-l2)+1e-4f,l1+l2-1e-4f);Vec3 bend=pole-rp-dir*dot(pole-rp,dir);if(length(bend)<1e-5f)bend=cross(dir,{0,1,0});if(length(bend)<1e-5f)bend=cross(dir,{1,0,0});bend=normalize(bend);const float along=(d*d+l1*l1-l2*l2)/(2.0f*d),height=std::sqrt(std::max(0.0f,l1*l1-along*along));const Vec3 desired=rp+dir*along+bend*height;
- const Quat rootDelta=from_to(mp-rp,desired-rp);r->local.rotation=slerp(r->local.rotation,multiply_quat(rootDelta,r->local.rotation),weight);
- mp=matrix_position(scene.world_matrix(middle));ep=matrix_position(scene.world_matrix(end));const Quat midDelta=from_to(ep-mp,target-mp);m->local.rotation=slerp(m->local.rotation,multiply_quat(midDelta,m->local.rotation),weight);return true;
+ const Quat rootDelta=from_to(mp-rp,desired-rp);set_world_rotation(scene,*r,multiply_quat(rootDelta,world_rotation(scene,root)),weight);
+ mp=matrix_position(scene.world_matrix(middle));ep=matrix_position(scene.world_matrix(end));const Quat midDelta=from_to(ep-mp,target-mp);set_world_rotation(scene,*m,multiply_quat(midDelta,world_rotation(scene,middle)),weight);return true;
 }
 } // namespace rhizo
