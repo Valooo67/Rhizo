@@ -412,6 +412,22 @@ RhizoResult rhizo_scene_get_mesh_info(const RhizoContext*c,uint32_t i,RhizoMeshI
   std::memset(out->name,0,sizeof(out->name));std::strncpy(out->name,m.name.c_str(),sizeof(out->name)-1);return RHIZO_SUCCESS;
 }
 uint32_t rhizo_scene_get_material_count(const RhizoContext*c){return c?static_cast<uint32_t>(c->scene.materials.size()):0;}
+RhizoResult rhizo_scene_get_mesh_skin_info(const RhizoContext*c,uint32_t mesh,RhizoMeshSkinInfo*out){
+ if(!c||!out||out->struct_size<sizeof(RhizoMeshSkinInfo)||mesh>=c->scene.meshes.size())return RHIZO_ERROR_INVALID_ARGUMENT;const auto&m=c->scene.meshes[mesh];out->bone_count=static_cast<uint32_t>(m.bones.size());out->morph_target_count=static_cast<uint32_t>(m.morph_targets.size());return RHIZO_SUCCESS;
+}
+RhizoResult rhizo_scene_get_mesh_bone_info(const RhizoContext*c,uint32_t mesh,uint32_t bone,RhizoBoneInfo*out){
+ if(!c||!out||out->struct_size<sizeof(RhizoBoneInfo)||mesh>=c->scene.meshes.size()||bone>=c->scene.meshes[mesh].bones.size())return RHIZO_ERROR_INVALID_ARGUMENT;const auto&b=c->scene.meshes[mesh].bones[bone];out->bone_index=bone;out->node_id=b.node;std::memset(out->name,0,sizeof(out->name));std::strncpy(out->name,b.name.c_str(),sizeof(out->name)-1);return RHIZO_SUCCESS;
+}
+RhizoResult rhizo_scene_get_mesh_morph_info(const RhizoContext*c,uint32_t mesh,uint32_t target,RhizoMorphTargetInfo*out){
+ if(!c||!out||out->struct_size<sizeof(RhizoMorphTargetInfo)||mesh>=c->scene.meshes.size()||target>=c->scene.meshes[mesh].morph_targets.size())return RHIZO_ERROR_INVALID_ARGUMENT;out->target_index=target;std::memset(out->name,0,sizeof(out->name));std::strncpy(out->name,c->scene.meshes[mesh].morph_targets[target].name.c_str(),sizeof(out->name)-1);return RHIZO_SUCCESS;
+}
+RhizoResult rhizo_scene_set_morph_weight(RhizoContext*c,uint32_t entity,uint32_t target,float weight){
+ if(!c||!std::isfinite(weight)||weight<-1.0f||weight>1.0f)return RHIZO_ERROR_INVALID_ARGUMENT;auto*n=c->scene.get(entity);if(!n)return RHIZO_ERROR_INVALID_ARGUMENT;size_t maxTargets=0;for(uint32_t mesh:n->mesh_indices)if(mesh<c->scene.meshes.size())maxTargets=std::max(maxTargets,c->scene.meshes[mesh].morph_targets.size());if(target>=maxTargets||target>=32)return RHIZO_ERROR_INVALID_ARGUMENT;if(n->morph_weights.size()<=target)n->morph_weights.resize(target+1,0.0f);n->morph_weights[target]=weight;return RHIZO_SUCCESS;
+}
+RhizoResult rhizo_scene_get_morph_weight(const RhizoContext*c,uint32_t entity,uint32_t target,float*out){
+ if(!c||!out)return RHIZO_ERROR_INVALID_ARGUMENT;const auto*n=c->scene.get(entity);if(!n||target>=n->morph_weights.size())return RHIZO_ERROR_INVALID_ARGUMENT;*out=n->morph_weights[target];return RHIZO_SUCCESS;
+}
+
 RhizoResult rhizo_scene_get_material_info(const RhizoContext*c,uint32_t i,RhizoMaterialInfo*out){
   constexpr size_t legacySize=offsetof(RhizoMaterialInfo,normal_scale);
   if(!c||!out||out->struct_size<legacySize||i>=c->scene.materials.size())return RHIZO_ERROR_INVALID_ARGUMENT;
