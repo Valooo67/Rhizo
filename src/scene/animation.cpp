@@ -95,7 +95,7 @@ Quat multiply_quat(Quat a,Quat b){return {a.w*b.x+a.x*b.w+a.y*b.z-a.z*b.y,a.w*b.
 Quat from_to(Vec3 a,Vec3 b){a=normalize(a);b=normalize(b);const float d=std::clamp(dot(a,b),-1.0f,1.0f);if(d>0.99999f)return Quat::identity();if(d<-0.99999f){Vec3 axis=normalize(cross(a,std::fabs(a.x)<0.8f?Vec3{1,0,0}:Vec3{0,1,0}));return {axis.x,axis.y,axis.z,0};}const Vec3 c=cross(a,b);const float s=std::sqrt((1.0f+d)*2.0f),inv=1.0f/s;return {c.x*inv,c.y*inv,c.z*inv,s*0.5f};}
 Vec3 matrix_position(const Mat4&m){return {m.v[12],m.v[13],m.v[14]};}
 Quat conjugate(Quat q){return {-q.x,-q.y,-q.z,q.w};}
-Quat normalized_quat(Quat q){const float n=std::sqrt(q.x*q.x+q.y*q.y+q.z*q.z+q.w*q.w);return n>1.0e-8f?Quat{q.x/n,q.y/n,q.z/n,q.w/n}:Quat::identity();}
+Quat quat_from_matrix(const Mat4&m);\nQuat normalized_quat(Quat q){const float n=std::sqrt(q.x*q.x+q.y*q.y+q.z*q.z+q.w*q.w);return n>1.0e-8f?Quat{q.x/n,q.y/n,q.z/n,q.w/n}:Quat::identity();}
 Quat world_rotation(const Scene&scene,EntityId id){return normalized_quat(quat_from_matrix(scene.world_matrix(id)));}
 Quat quat_from_matrix(const Mat4&m){
  Vec3 x=normalize({m.v[0],m.v[1],m.v[2]}),y=normalize({m.v[4],m.v[5],m.v[6]}),z=normalize({m.v[8],m.v[9],m.v[10]});
