@@ -560,7 +560,7 @@ RhizoResult rhizo_assets_scan(RhizoContext*c,const char*root){
 }
 uint32_t rhizo_assets_get_count(const RhizoContext*c){return c?static_cast<uint32_t>(c->assets.assets().size()):0;}
 RhizoResult rhizo_assets_get(const RhizoContext*c,uint32_t index,RhizoAssetInfo*out){
- if(!c||!out||out->struct_size<sizeof(RhizoAssetInfo)||index>=c->assets.assets().size())return RHIZO_ERROR_INVALID_ARGUMENT;const auto&a=c->assets.assets()[index];out->type=static_cast<uint32_t>(a.type);out->id=a.id;out->size=a.size;out->modified=a.modified;std::strncpy(out->path,a.path.c_str(),sizeof(out->path)-1);out->path[sizeof(out->path)-1]='\\0';return RHIZO_SUCCESS;
+ if(!c||!out||out->struct_size<sizeof(RhizoAssetInfo)||index>=c->assets.assets().size())return RHIZO_ERROR_INVALID_ARGUMENT;const auto&a=c->assets.assets()[index];out->type=static_cast<uint32_t>(a.type);out->id=a.id;out->size=a.size;out->modified=a.modified;std::strncpy(out->path,a.path.c_str(),sizeof(out->path)-1);out->path[sizeof(out->path)-1]='\0';return RHIZO_SUCCESS;
 }
 void rhizo_resources_collect(RhizoContext*c){if(c)c->resources.collect_unused();}
 void rhizo_resources_clear(RhizoContext*c){if(c)c->resources.clear();}
