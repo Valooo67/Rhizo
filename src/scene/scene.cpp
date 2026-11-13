@@ -20,12 +20,14 @@ bool Scene::destroy(EntityId id){
   auto*n=get(id);if(!n)return false;
   const auto children=n->children;for(EntityId c:children)destroy(c);
   if(n->parent!=kInvalidEntity)if(auto*p=get(n->parent)){auto&v=p->children;v.erase(std::remove(v.begin(),v.end(),id),v.end());}
-  components.remove_entity(id);\n  nodes_.erase(std::remove_if(nodes_.begin(),nodes_.end(),[id](const SceneNode&x){return x.id==id;}),nodes_.end());return true;
+  components.remove_entity(id);
+  nodes_.erase(std::remove_if(nodes_.begin(),nodes_.end(),[id](const SceneNode&x){return x.id==id;}),nodes_.end());return true;
 }
 Mat4 Scene::world_matrix(EntityId id)const{
   const auto*n=get(id);if(!n)return Mat4::identity();
   const Mat4 local=compose(n->local.position,n->local.rotation,n->local.scale);
   return n->parent==kInvalidEntity?local:multiply(world_matrix(n->parent),local);
 }
-std::vector<EntityId> Scene::roots()const{std::vector<EntityId> r;for(const auto&n:nodes_)if(n.parent==kInvalidEntity)r.push_back(n.id);return r;}\nvoid Scene::clear(){nodes_.clear();meshes.clear();materials.clear();components.clear();next_id_=1;}
+std::vector<EntityId> Scene::roots()const{std::vector<EntityId> r;for(const auto&n:nodes_)if(n.parent==kInvalidEntity)r.push_back(n.id);return r;}
+void Scene::clear(){nodes_.clear();meshes.clear();materials.clear();components.clear();next_id_=1;}
 }
