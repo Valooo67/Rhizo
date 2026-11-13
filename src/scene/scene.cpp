@@ -20,7 +20,8 @@ bool Scene::destroy(EntityId id){
   auto*n=get(id);if(!n)return false;
   const EntityId parent=n->parent;const auto children=n->children;for(EntityId c:children)destroy(c);
   if(parent!=kInvalidEntity)if(auto*p=get(parent)){auto&v=p->children;v.erase(std::remove(v.begin(),v.end(),id),v.end());}
-  for(auto&mesh:meshes)for(auto&bone:mesh.bones)if(bone.node==id)bone.node=kInvalidEntity;\n  components.remove_entity(id);
+  for(auto&mesh:meshes)for(auto&bone:mesh.bones)if(bone.node==id)bone.node=kInvalidEntity;
+  components.remove_entity(id);
   nodes_.erase(std::remove_if(nodes_.begin(),nodes_.end(),[id](const SceneNode&x){return x.id==id;}),nodes_.end());return true;
 }
 Mat4 Scene::world_matrix(EntityId id)const{
