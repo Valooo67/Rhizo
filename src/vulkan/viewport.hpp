@@ -47,10 +47,15 @@ class Viewport final {
     float bounds_radius=0.0f;
   };
   struct MaterialGpuCache { std::array<std::unique_ptr<FrameTexture>,4> textures; std::array<std::string,4> paths; VkDescriptorSet descriptor=VK_NULL_HANDLE; bool initialized=false; };
-  struct DrawItem { const Mesh* mesh=nullptr; Mat4 model=Mat4::identity(); uint32_t meshIndex=0; EntityId entity=0; VkDescriptorSet skin_descriptor=VK_NULL_HANDLE; bool skinned=false; };\n  struct SkinGpuCache { EntityId entity=0; uint32_t mesh_index=0,bone_count=0; std::unique_ptr<GpuBuffer> matrices; VkDescriptorSet descriptor=VK_NULL_HANDLE; };\n  std::vector<SkinGpuCache> skin_cache_;
+  struct DrawItem { const Mesh* mesh=nullptr; Mat4 model=Mat4::identity(); uint32_t meshIndex=0; EntityId entity=0; VkDescriptorSet skin_descriptor=VK_NULL_HANDLE; bool skinned=false; };
+  struct SkinGpuCache { EntityId entity=0; uint32_t mesh_index=0,bone_count=0; std::unique_ptr<GpuBuffer> matrices; VkDescriptorSet descriptor=VK_NULL_HANDLE; };
+  std::vector<SkinGpuCache> skin_cache_;
   std::vector<DrawItem> draw_items_;
   std::vector<std::array<std::vector<Mat4>,3>> instance_batches_;
-  VkDescriptorSetLayout material_set_layout_=VK_NULL_HANDLE,skin_set_layout_=VK_NULL_HANDLE;\n  VkDescriptorPool skin_descriptor_pool_=VK_NULL_HANDLE;\n  VkDescriptorSet identity_skin_descriptor_set_=VK_NULL_HANDLE;\n  std::unique_ptr<GpuBuffer> identity_skin_buffer_;
+  VkDescriptorSetLayout material_set_layout_=VK_NULL_HANDLE,skin_set_layout_=VK_NULL_HANDLE;
+  VkDescriptorPool skin_descriptor_pool_=VK_NULL_HANDLE;
+  VkDescriptorSet identity_skin_descriptor_set_=VK_NULL_HANDLE;
+  std::unique_ptr<GpuBuffer> identity_skin_buffer_;
   VkDescriptorSet frame_descriptor_set_=VK_NULL_HANDLE;
   VkDescriptorPool material_descriptor_pool_=VK_NULL_HANDLE;
   std::vector<MaterialGpuCache> material_cache_;
