@@ -27,6 +27,11 @@ echo
 echo "===== SOURCE TREE ====="
 find include src -maxdepth 4 -type f -print | sort
 echo
+echo "===== HOST ANIMATION RUNTIME TESTS ====="
+clang++ -std=c++20 -Wall -Wextra -Werror -I include tests/animation_runtime_tests.cpp src/scene/animation.cpp src/scene/scene.cpp -o /tmp/rhizo-animation-tests
+/tmp/rhizo-animation-tests
+echo "animation runtime tests: PASS"
+echo
 echo "===== CMAKE CONFIGURE (Android ARM64) ====="
 cmake -S . -B build-android \
   -DCMAKE_TOOLCHAIN_FILE="$ANDROID_HOME/ndk/28.2.13676358/build/cmake/android.toolchain.cmake" \
