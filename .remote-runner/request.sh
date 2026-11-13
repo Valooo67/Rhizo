@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-echo "===== RHIZO FINAL HDR / CSM / POINT / MULTI-LIGHT / INSTANCING BUILD ====="
+echo "===== RHIZO FINAL RENDERER BUILD + SPIR-V VALIDATION ====="
 echo "===== RHIZO REMOTE BUILD + COMPLETE C ABI VALIDATION ====="
 echo "UTC: $(date -u +%FT%TZ)"
 echo "Host: $(uname -a)"
