@@ -33,7 +33,7 @@ class Animation {
 };
 
 enum class PlaybackMode:uint32_t { Once=0,Loop=1,PingPong=2 };
-class AnimationPlayer {
+struct AnimationClip { std::string name; Animation animation; };\n\nclass AnimationPlayer {
  public:
   void bind(const Animation* animation){if(animation_!=animation){animation_=animation;time_=0;direction_=1;playing_=false;}}
   void play(bool restart=false){if(restart)time_=0;direction_=1;playing_=animation_!=nullptr;}
@@ -75,7 +75,7 @@ class AnimationStateMachine {
   bool blending_=false;
 };
 
-bool solve_look_at(Scene& scene,EntityId entity,EntityId target,float weight=1.0f);
+bool retarget_animation(const Animation& source,const std::unordered_map<EntityId,EntityId>& mapping,Animation& destination);\nbool solve_look_at(Scene& scene,EntityId entity,EntityId target,float weight=1.0f);
 bool solve_two_bone_ik(Scene& scene,EntityId root,EntityId middle,EntityId end,Vec3 target,Vec3 pole,float weight=1.0f);
 
 } // namespace rhizo
