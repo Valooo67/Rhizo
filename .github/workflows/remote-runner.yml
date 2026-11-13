@@ -58,4 +58,6 @@ jobs:
           path: |
             terminal.log
             exit-code.txt
+            build-android/librhizo.so
+            build-android/_deps/assimp-build/bin/libassimp.so
           if-no-files-found: warn
