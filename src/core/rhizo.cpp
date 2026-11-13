@@ -27,6 +27,7 @@ struct RhizoContext {
   std::vector<RhizoBuffer*> buffers;
   rhizo::Scene scene;
   rhizo::Animation animation;
+  uint32_t selected_entity=0,gizmo_mode=RHIZO_GIZMO_TRANSLATE;
   std::unique_ptr<rhizo::ShadowMap> shadow_map;
   RhizoRenderSettings render_settings{sizeof(RhizoRenderSettings),RHIZO_SHADOWS_MAPS,2048,0.0015f,0.01f,1.0f,1.0f,1.0f,1,1,1,1,{0,0,0,0}};
   std::vector<uint8_t> opengl_frame;
@@ -276,6 +277,27 @@ RhizoResult rhizo_opengl_get_latest_texture(const RhizoContext*c,uint64_t*view,u
 RhizoResult rhizo_opengl_get_latest_frame(const RhizoContext*c,RhizoOpenGLFrameInfo*i,const void**p,uint64_t*n){
  if(!c||!i||!p||!n||i->struct_size<sizeof(RhizoOpenGLFrameInfo)||c->opengl_frame.empty())return RHIZO_ERROR_INVALID_ARGUMENT;
  *i=c->opengl_frame_info;*p=c->opengl_frame.data();*n=c->opengl_frame.size();return RHIZO_SUCCESS;
+}
+
+
+RhizoResult rhizo_editor_set_selection(RhizoContext*c,uint32_t id){
+ if(!c||(id!=0&&!c->scene.get(id)))return RHIZO_ERROR_INVALID_ARGUMENT;c->selected_entity=id;return RHIZO_SUCCESS;
+}
+uint32_t rhizo_editor_get_selection(const RhizoContext*c){return c?c->selected_entity:0;}
+RhizoResult rhizo_editor_set_gizmo_mode(RhizoContext*c,uint32_t mode){
+ if(!c||mode>RHIZO_GIZMO_SCALE)return RHIZO_ERROR_INVALID_ARGUMENT;c->gizmo_mode=mode;return RHIZO_SUCCESS;
+}
+uint32_t rhizo_editor_get_gizmo_mode(const RhizoContext*c){return c?c->gizmo_mode:RHIZO_GIZMO_TRANSLATE;}
+RhizoResult rhizo_editor_apply_gizmo_delta(RhizoContext*c,uint32_t axis,float delta,uint8_t local){
+ if(!c||axis>2||!std::isfinite(delta)||!c->selected_entity)return RHIZO_ERROR_INVALID_ARGUMENT;
+ auto*n=c->scene.get(c->selected_entity);if(!n)return RHIZO_ERROR_INVALID_ARGUMENT;
+ rhizo::Vec3 a{axis==0?1.0f:0.0f,axis==1?1.0f:0.0f,axis==2?1.0f:0.0f};
+ if(local){const auto q=n->local.rotation;const rhizo::Vec3 v{q.x,q.y,q.z};const rhizo::Vec3 t=rhizo::cross(v,a)*2.0f;a=a+ t*q.w+rhizo::cross(v,t);}
+ if(c->gizmo_mode==RHIZO_GIZMO_TRANSLATE)n->local.position=n->local.position+a*delta;
+ else if(c->gizmo_mode==RHIZO_GIZMO_SCALE){const float factor=std::max(0.001f,1.0f+delta);if(axis==0)n->local.scale.x*=factor;else if(axis==1)n->local.scale.y*=factor;else n->local.scale.z*=factor;}
+ else {const float half=delta*0.5f,s=std::sin(half),co=std::cos(half);rhizo::Quat d{a.x*s,a.y*s,a.z*s,co};const auto q=n->local.rotation;
+ n->local.rotation={d.w*q.x+d.x*q.w+d.y*q.z-d.z*q.y,d.w*q.y-d.x*q.z+d.y*q.w+d.z*q.x,d.w*q.z+d.x*q.y-d.y*q.x+d.z*q.w,d.w*q.w-d.x*q.x-d.y*q.y-d.z*q.z};}
+ return RHIZO_SUCCESS;
 }
 
 RhizoResult rhizo_scene_create_node(RhizoContext* c,uint32_t parent,const char* name,uint32_t* out){

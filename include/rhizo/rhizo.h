@@ -68,6 +68,7 @@ typedef struct RhizoRenderSettings {
  float shadow_bias,shadow_normal_bias,exposure,environment_intensity,render_scale;
  uint8_t enable_pbr,enable_textures,enable_vsync,enable_backface_culling,reserved[4];
 } RhizoRenderSettings;
+typedef enum RhizoGizmoMode { RHIZO_GIZMO_TRANSLATE=0, RHIZO_GIZMO_ROTATE=1, RHIZO_GIZMO_SCALE=2 } RhizoGizmoMode;
 typedef struct RhizoOpenGLFrameInfo {
  uint32_t struct_size,width,height,stride_bytes;
  uint64_t frame_index,timestamp_ns;
@@ -102,6 +103,11 @@ RHIZO_API RhizoResult rhizo_scene_create_node(RhizoContext*,uint32_t,const char*
 RHIZO_API RhizoResult rhizo_scene_destroy_node(RhizoContext*,uint32_t);
 RHIZO_API RhizoResult rhizo_scene_set_parent(RhizoContext*,uint32_t,uint32_t);
 RHIZO_API RhizoResult rhizo_scene_set_transform(RhizoContext*,uint32_t,const RhizoTransform*);
+RHIZO_API RhizoResult rhizo_editor_set_selection(RhizoContext*,uint32_t);
+RHIZO_API uint32_t rhizo_editor_get_selection(const RhizoContext*);
+RHIZO_API RhizoResult rhizo_editor_set_gizmo_mode(RhizoContext*,uint32_t);
+RHIZO_API uint32_t rhizo_editor_get_gizmo_mode(const RhizoContext*);
+RHIZO_API RhizoResult rhizo_editor_apply_gizmo_delta(RhizoContext*,uint32_t axis,float delta,uint8_t local_space);
 RHIZO_API RhizoResult rhizo_scene_get_transform(const RhizoContext*,uint32_t,RhizoTransform*);
 RHIZO_API uint32_t rhizo_scene_get_node_count(const RhizoContext*);
 RHIZO_API RhizoResult rhizo_scene_get_node(const RhizoContext*,uint32_t,RhizoSceneNodeInfo*);
