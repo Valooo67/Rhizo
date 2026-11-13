@@ -128,7 +128,7 @@ RhizoResult rhizo_viewport_render_scene_camera(RhizoContext*c,uint32_t id){
  const rhizo::Mat4 world=c->scene.world_matrix(id);const rhizo::Vec3 pos{world.v[12],world.v[13],world.v[14]},forward=rhizo::normalize({-world.v[8],-world.v[9],-world.v[10]}),up=rhizo::normalize({world.v[4],world.v[5],world.v[6]});
  const rhizo::Mat4 view=rhizo::look_at(pos,pos+forward,up);const float aspect=static_cast<float>(c->viewport.width())/static_cast<float>(std::max(1u,c->viewport.height()));rhizo::Mat4 projection{};
  if(n->camera.orthographic){const float h=n->camera.orthographic_size,w=h*aspect;projection.v[0]=1.0f/w;projection.v[5]=-1.0f/h;projection.v[10]=1.0f/(n->camera.near_plane-n->camera.far_plane);projection.v[14]=n->camera.near_plane/(n->camera.near_plane-n->camera.far_plane);projection.v[15]=1.0f;}else projection=rhizo::perspective(n->camera.vertical_fov,aspect,n->camera.near_plane,n->camera.far_plane);
- c->viewport.set_render_settings(c->render_settings);std::string error;if(!c->viewport.render_scene(c->scene,rhizo::multiply(projection,view),c->selected_entity,c->gizmo_mode,error,c->opengl_frame_texture.get(),c->opengl_frame_info.frame_index)){c->last_error=std::move(error);return RHIZO_ERROR_VULKAN;}return RHIZO_SUCCESS;
+ c->viewport.set_render_settings(c->render_settings);std::string error;if(!c->viewport.render_scene(c->scene,rhizo::multiply(projection,view),c->selected_entity,c->gizmo_mode,error,c->opengl_frame_texture.get(),c->opengl_frame_info.frame_index,&pos)){c->last_error=std::move(error);return RHIZO_ERROR_VULKAN;}return RHIZO_SUCCESS;
 }
 void rhizo_viewport_detach(RhizoContext* context) { if (context) context->viewport.detach(); }
 
