@@ -48,7 +48,7 @@ bool extract_zip(const fs::path&zip,const fs::path&dest,std::string&error){
    if(inflateInit2(&z,-MAX_WBITS)!=Z_OK){error="ZIP inflate initialization failed";return false;}
    const int rc=inflate(&z,Z_FINISH);inflateEnd(&z);if(rc!=Z_STREAM_END||z.total_out!=uncompressed){error="ZIP deflate stream is invalid";return false;}
   }else continue;
-  const uint32_t actual=crc32(0,reinterpret_cast<const Bytef*>(out.data()),static_cast<uInt>(out.size()));
+  const uLong actual=crc32(0,reinterpret_cast<const Bytef*>(out.data()),static_cast<uInt>(out.size()));
   if(actual!=crc){error="ZIP entry CRC mismatch: "+name;return false;}
   const fs::path target=dest/fs::path(name);fs::create_directories(target.parent_path(),ec);
   std::ofstream o(target,std::ios::binary);if(!o){error="Cannot write extracted ZIP entry";return false;}
