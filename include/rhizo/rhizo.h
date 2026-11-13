@@ -52,14 +52,14 @@ typedef struct RhizoMeshInfo {
   char name[128];
 } RhizoMeshInfo;
 typedef enum RhizoInterpolation { RHIZO_INTERPOLATION_STEP=0, RHIZO_INTERPOLATION_LINEAR=1, RHIZO_INTERPOLATION_SMOOTH=2, RHIZO_INTERPOLATION_CUBIC=3 } RhizoInterpolation;
-typedef enum RhizoPlaybackMode { RHIZO_PLAY_ONCE=0, RHIZO_PLAY_LOOP=1, RHIZO_PLAY_PING_PONG=2 } RhizoPlaybackMode;
+typedef enum RhizoPlaybackMode { RHIZO_PLAY_ONCE=0, RHIZO_PLAY_LOOP=1, RHIZO_PLAY_PING_PONG=2 } RhizoPlaybackMode;\ntypedef struct RhizoAnimationClipInfo { uint32_t struct_size,clip_id,key_count; double duration; char name[128]; } RhizoAnimationClipInfo;\ntypedef struct RhizoMeshSkinInfo { uint32_t struct_size,bone_count,morph_target_count; } RhizoMeshSkinInfo;\ntypedef struct RhizoBoneInfo { uint32_t struct_size,bone_index,node_id; char name[128]; } RhizoBoneInfo;\ntypedef struct RhizoMorphTargetInfo { uint32_t struct_size,target_index; char name[128]; } RhizoMorphTargetInfo;
 typedef enum RhizoAnimatedProperty {
   RHIZO_ANIM_POSITION=0, RHIZO_ANIM_ROTATION=1, RHIZO_ANIM_SCALE=2,
   RHIZO_ANIM_CAMERA_VERTICAL_FOV=3, RHIZO_ANIM_CAMERA_NEAR=4,
   RHIZO_ANIM_CAMERA_FAR=5, RHIZO_ANIM_CAMERA_ORTHOGRAPHIC_SIZE=6,
   RHIZO_ANIM_LIGHT_INTENSITY=7, RHIZO_ANIM_LIGHT_RANGE=8,
   RHIZO_ANIM_LIGHT_INNER_CONE=9, RHIZO_ANIM_LIGHT_OUTER_CONE=10,
-  RHIZO_ANIM_LIGHT_COLOR=11, RHIZO_ANIM_MATERIAL_BASE_COLOR=12, RHIZO_ANIM_MATERIAL_METALLIC=13, RHIZO_ANIM_MATERIAL_ROUGHNESS=14, RHIZO_ANIM_MATERIAL_NORMAL_SCALE=15, RHIZO_ANIM_MATERIAL_OCCLUSION=16
+  RHIZO_ANIM_LIGHT_COLOR=11, RHIZO_ANIM_MATERIAL_BASE_COLOR=12, RHIZO_ANIM_MATERIAL_METALLIC=13, RHIZO_ANIM_MATERIAL_ROUGHNESS=14, RHIZO_ANIM_MATERIAL_NORMAL_SCALE=15, RHIZO_ANIM_MATERIAL_OCCLUSION=16, RHIZO_ANIM_MORPH_WEIGHT_BASE=17
 } RhizoAnimatedProperty;
 typedef struct RhizoCameraInfo { uint32_t struct_size; float vertical_fov,near_plane,far_plane,orthographic_size; uint8_t orthographic,reserved[3]; } RhizoCameraInfo;
 typedef struct RhizoLightInfo { uint32_t struct_size,type; float color[3],intensity,range,inner_cone,outer_cone; uint8_t casts_shadows,reserved[3]; } RhizoLightInfo;
@@ -139,7 +139,7 @@ RHIZO_API RhizoResult rhizo_scene_look_at(RhizoContext*,uint32_t,uint32_t,float)
 RHIZO_API RhizoResult rhizo_scene_solve_two_bone_ik(RhizoContext*,uint32_t,uint32_t,uint32_t,const float[3],const float[3],float);
 RHIZO_API RhizoResult rhizo_camera_shake(RhizoContext*,uint32_t,double,float,float);
 RHIZO_API RhizoResult rhizo_camera_shake_clear(RhizoContext*,uint32_t);
-RHIZO_API RhizoResult rhizo_animation_clip_create(RhizoContext*,uint32_t);
+RHIZO_API RhizoResult rhizo_animation_clip_create(RhizoContext*,uint32_t);\nRHIZO_API RhizoResult rhizo_animation_clip_remove(RhizoContext*,uint32_t);\nRHIZO_API uint32_t rhizo_animation_clip_get_count(const RhizoContext*);\nRHIZO_API RhizoResult rhizo_animation_clip_get_info(const RhizoContext*,uint32_t,RhizoAnimationClipInfo*);\nRHIZO_API RhizoResult rhizo_animation_clip_set_interpolation(RhizoContext*,uint32_t,uint32_t,uint32_t,uint32_t);\nRHIZO_API RhizoResult rhizo_animation_clip_remove_keyframe(RhizoContext*,uint32_t,uint32_t,uint32_t,double);\nRHIZO_API RhizoResult rhizo_animation_play_clip(RhizoContext*,uint32_t,uint8_t);\nRHIZO_API RhizoResult rhizo_animation_clip_retarget(RhizoContext*,uint32_t,uint32_t,const uint32_t*,const uint32_t*,uint32_t);
 RHIZO_API RhizoResult rhizo_animation_clip_set_keyframe(RhizoContext*,uint32_t,uint32_t,uint32_t,double,const RhizoTransform*);
 RHIZO_API RhizoResult rhizo_animation_clip_set_parameter_keyframe(RhizoContext*,uint32_t,uint32_t,uint32_t,double,const float[4]);
 RHIZO_API RhizoResult rhizo_animation_state_add(RhizoContext*,uint32_t,uint32_t,double);
@@ -149,7 +149,7 @@ RHIZO_API RhizoResult rhizo_animation_state_tick(RhizoContext*,double);
 RHIZO_API RhizoResult rhizo_scene_import_model(RhizoContext*,const char*,const char*,RhizoImportReport*);
 RHIZO_API uint32_t rhizo_scene_get_mesh_count(const RhizoContext*);
 RHIZO_API RhizoResult rhizo_scene_get_mesh_info(const RhizoContext*,uint32_t,RhizoMeshInfo*);
-RHIZO_API uint32_t rhizo_scene_get_material_count(const RhizoContext*);
+RHIZO_API uint32_t rhizo_scene_get_material_count(const RhizoContext*);\nRHIZO_API RhizoResult rhizo_scene_get_mesh_skin_info(const RhizoContext*,uint32_t,RhizoMeshSkinInfo*);\nRHIZO_API RhizoResult rhizo_scene_get_mesh_bone_info(const RhizoContext*,uint32_t,uint32_t,RhizoBoneInfo*);\nRHIZO_API RhizoResult rhizo_scene_get_mesh_morph_info(const RhizoContext*,uint32_t,uint32_t,RhizoMorphTargetInfo*);\nRHIZO_API RhizoResult rhizo_scene_set_morph_weight(RhizoContext*,uint32_t,uint32_t,float);\nRHIZO_API RhizoResult rhizo_scene_get_morph_weight(const RhizoContext*,uint32_t,uint32_t,float*);
 RHIZO_API RhizoResult rhizo_scene_set_camera(RhizoContext*,uint32_t,const RhizoCameraInfo*);
 RHIZO_API RhizoResult rhizo_scene_get_camera(const RhizoContext*,uint32_t,RhizoCameraInfo*);
 RHIZO_API RhizoResult rhizo_scene_set_light(RhizoContext*,uint32_t,const RhizoLightInfo*);
