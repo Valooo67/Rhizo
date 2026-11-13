@@ -17,6 +17,7 @@
 #include <cstddef>
 #include <cstring>
 #include <memory>
+#include <iterator>
 #include <map>
 #include <new>
 #include <string>
@@ -36,6 +37,8 @@ struct RhizoContext {
   rhizo::Animation animation;
   rhizo::AnimationPlayer animation_player;
   std::map<uint32_t,rhizo::Animation> animation_clips;
+  std::map<uint32_t,std::string> animation_clip_names;
+  uint32_t next_animation_clip_id=1,active_animation_clip=0;
   rhizo::AnimationStateMachine animation_state_machine;
   std::unordered_map<uint32_t,rhizo::Vec3> camera_shake_origins;
   uint32_t selected_entity=0,gizmo_mode=RHIZO_GIZMO_TRANSLATE;
@@ -397,7 +400,9 @@ RhizoResult rhizo_scene_import_model(RhizoContext*c,const char*path,const char*c
   for(const auto&m:source.materials)c->scene.materials.push_back(m);
   for(auto m:source.meshes){if(m.material_index<source.materials.size())m.material_index+=materialBase;c->scene.meshes.push_back(std::move(m));}
   std::unordered_map<uint32_t,uint32_t> ids;for(const auto&n:source.nodes()){uint32_t id=c->scene.create(n.name);if(!id){c->last_error="Failed to instantiate cached model scene";return RHIZO_ERROR_INTERNAL;}ids[n.id]=id;}
-  for(const auto&n:source.nodes()){auto*dst=c->scene.get(ids[n.id]);dst->local=n.local;dst->visible=n.visible;dst->has_camera=n.has_camera;dst->camera=n.camera;dst->has_light=n.has_light;dst->light=n.light;for(uint32_t m:n.mesh_indices)dst->mesh_indices.push_back(meshBase+m);if(n.parent&&!c->scene.set_parent(dst->id,ids[n.parent])){c->last_error="Cached model hierarchy is invalid";return RHIZO_ERROR_INTERNAL;}}
+  for(const auto&n:source.nodes()){auto*dst=c->scene.get(ids[n.id]);dst->local=n.local;dst->visible=n.visible;dst->has_camera=n.has_camera;dst->camera=n.camera;dst->has_light=n.has_light;dst->light=n.light;dst->morph_weights=n.morph_weights;for(uint32_t m:n.mesh_indices)dst->mesh_indices.push_back(meshBase+m);if(n.parent&&!c->scene.set_parent(dst->id,ids[n.parent])){c->last_error="Cached model hierarchy is invalid";return RHIZO_ERROR_INTERNAL;}}
+  for(size_t mi=0;mi<source.meshes.size();mi++)for(auto&bone:c->scene.meshes[meshBase+mi].bones){auto mapped=ids.find(bone.node);bone.node=mapped==ids.end()?0:mapped->second;}
+  for(const auto&clip:resource->animations){rhizo::Animation remapped;if(!rhizo::retarget_animation(clip.animation,ids,remapped))continue;while(c->animation_clips.contains(c->next_animation_clip_id))++c->next_animation_clip_id;const uint32_t clipId=c->next_animation_clip_id++;c->animation_clips.emplace(clipId,std::move(remapped));c->animation_clip_names[clipId]=clip.name;}
   out->node_count=static_cast<uint32_t>(source.nodes().size());out->mesh_count=static_cast<uint32_t>(source.meshes.size());out->material_count=static_cast<uint32_t>(source.materials.size());
   std::memset(out->resolved_model_path,0,sizeof(out->resolved_model_path));std::strncpy(out->resolved_model_path,resource->source.c_str(),sizeof(out->resolved_model_path)-1);c->last_error.clear();return RHIZO_SUCCESS;
 }
@@ -408,6 +413,22 @@ RhizoResult rhizo_scene_get_mesh_info(const RhizoContext*c,uint32_t i,RhizoMeshI
   std::memset(out->name,0,sizeof(out->name));std::strncpy(out->name,m.name.c_str(),sizeof(out->name)-1);return RHIZO_SUCCESS;
 }
 uint32_t rhizo_scene_get_material_count(const RhizoContext*c){return c?static_cast<uint32_t>(c->scene.materials.size()):0;}
+RhizoResult rhizo_scene_get_mesh_skin_info(const RhizoContext*c,uint32_t mesh,RhizoMeshSkinInfo*out){
+ if(!c||!out||out->struct_size<sizeof(RhizoMeshSkinInfo)||mesh>=c->scene.meshes.size())return RHIZO_ERROR_INVALID_ARGUMENT;const auto&m=c->scene.meshes[mesh];out->bone_count=static_cast<uint32_t>(m.bones.size());out->morph_target_count=static_cast<uint32_t>(m.morph_targets.size());return RHIZO_SUCCESS;
+}
+RhizoResult rhizo_scene_get_mesh_bone_info(const RhizoContext*c,uint32_t mesh,uint32_t bone,RhizoBoneInfo*out){
+ if(!c||!out||out->struct_size<sizeof(RhizoBoneInfo)||mesh>=c->scene.meshes.size()||bone>=c->scene.meshes[mesh].bones.size())return RHIZO_ERROR_INVALID_ARGUMENT;const auto&b=c->scene.meshes[mesh].bones[bone];out->bone_index=bone;out->node_id=b.node;std::memset(out->name,0,sizeof(out->name));std::strncpy(out->name,b.name.c_str(),sizeof(out->name)-1);return RHIZO_SUCCESS;
+}
+RhizoResult rhizo_scene_get_mesh_morph_info(const RhizoContext*c,uint32_t mesh,uint32_t target,RhizoMorphTargetInfo*out){
+ if(!c||!out||out->struct_size<sizeof(RhizoMorphTargetInfo)||mesh>=c->scene.meshes.size()||target>=c->scene.meshes[mesh].morph_targets.size())return RHIZO_ERROR_INVALID_ARGUMENT;out->target_index=target;std::memset(out->name,0,sizeof(out->name));std::strncpy(out->name,c->scene.meshes[mesh].morph_targets[target].name.c_str(),sizeof(out->name)-1);return RHIZO_SUCCESS;
+}
+RhizoResult rhizo_scene_set_morph_weight(RhizoContext*c,uint32_t entity,uint32_t target,float weight){
+ if(!c||!std::isfinite(weight)||weight<-1.0f||weight>1.0f)return RHIZO_ERROR_INVALID_ARGUMENT;auto*n=c->scene.get(entity);if(!n)return RHIZO_ERROR_INVALID_ARGUMENT;size_t maxTargets=0;for(uint32_t mesh:n->mesh_indices)if(mesh<c->scene.meshes.size())maxTargets=std::max(maxTargets,c->scene.meshes[mesh].morph_targets.size());if(target>=maxTargets||target>=32)return RHIZO_ERROR_INVALID_ARGUMENT;if(n->morph_weights.size()<=target)n->morph_weights.resize(target+1,0.0f);n->morph_weights[target]=weight;return RHIZO_SUCCESS;
+}
+RhizoResult rhizo_scene_get_morph_weight(const RhizoContext*c,uint32_t entity,uint32_t target,float*out){
+ if(!c||!out)return RHIZO_ERROR_INVALID_ARGUMENT;const auto*n=c->scene.get(entity);if(!n||target>=n->morph_weights.size())return RHIZO_ERROR_INVALID_ARGUMENT;*out=n->morph_weights[target];return RHIZO_SUCCESS;
+}
+
 RhizoResult rhizo_scene_get_material_info(const RhizoContext*c,uint32_t i,RhizoMaterialInfo*out){
   constexpr size_t legacySize=offsetof(RhizoMaterialInfo,normal_scale);
   if(!c||!out||out->struct_size<legacySize||i>=c->scene.materials.size())return RHIZO_ERROR_INVALID_ARGUMENT;
@@ -487,21 +508,40 @@ RhizoResult rhizo_scene_set_parameter_interpolation(RhizoContext*c,uint32_t id,u
  return c->animation.set_parameter_interpolation(id,property,static_cast<rhizo::Interpolation>(mode))?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;
 }
 RhizoResult rhizo_animation_play(RhizoContext*c,uint8_t restart){
- if(!c)return RHIZO_ERROR_INVALID_ARGUMENT;c->animation_player.bind(&c->animation);c->animation_player.play(restart!=0);return RHIZO_SUCCESS;
+ if(!c)return RHIZO_ERROR_INVALID_ARGUMENT;c->active_animation_clip=0;c->animation_player.bind(&c->animation);c->animation_player.play(restart!=0);return RHIZO_SUCCESS;
 }
 RhizoResult rhizo_animation_pause(RhizoContext*c){if(!c)return RHIZO_ERROR_INVALID_ARGUMENT;c->animation_player.pause();return RHIZO_SUCCESS;}
 RhizoResult rhizo_animation_stop(RhizoContext*c){if(!c)return RHIZO_ERROR_INVALID_ARGUMENT;c->animation_player.stop();return RHIZO_SUCCESS;}
-RhizoResult rhizo_animation_seek(RhizoContext*c,double time){if(!c||!std::isfinite(time)||time<0)return RHIZO_ERROR_INVALID_ARGUMENT;c->animation_player.bind(&c->animation);c->animation_player.seek(time);return c->animation_player.evaluate(c->scene)?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;}
+RhizoResult rhizo_animation_seek(RhizoContext*c,double time){if(!c||!std::isfinite(time)||time<0)return RHIZO_ERROR_INVALID_ARGUMENT;const rhizo::Animation*active=&c->animation;if(c->active_animation_clip){auto it=c->animation_clips.find(c->active_animation_clip);if(it==c->animation_clips.end())return RHIZO_ERROR_INVALID_ARGUMENT;active=&it->second;}c->animation_player.bind(active);c->animation_player.seek(time);return c->animation_player.evaluate(c->scene)?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;}
 RhizoResult rhizo_animation_set_speed(RhizoContext*c,double speed){if(!c||!std::isfinite(speed)||speed==0||std::abs(speed)>8)return RHIZO_ERROR_INVALID_ARGUMENT;c->animation_player.set_speed(speed);return RHIZO_SUCCESS;}
 RhizoResult rhizo_animation_set_mode(RhizoContext*c,uint32_t mode){if(!c||mode>2)return RHIZO_ERROR_INVALID_ARGUMENT;c->animation_player.set_mode(static_cast<rhizo::PlaybackMode>(mode));return RHIZO_SUCCESS;}
-RhizoResult rhizo_animation_tick(RhizoContext*c,double delta){if(!c||!std::isfinite(delta)||delta<0||delta>1.0)return RHIZO_ERROR_INVALID_ARGUMENT;c->animation_player.bind(&c->animation);return c->animation_player.tick(c->scene,delta)?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;}
+RhizoResult rhizo_animation_tick(RhizoContext*c,double delta){if(!c||!std::isfinite(delta)||delta<0||delta>1.0)return RHIZO_ERROR_INVALID_ARGUMENT;const rhizo::Animation*active=&c->animation;if(c->active_animation_clip){auto it=c->animation_clips.find(c->active_animation_clip);if(it==c->animation_clips.end())return RHIZO_ERROR_INVALID_ARGUMENT;active=&it->second;}c->animation_player.bind(active);return c->animation_player.tick(c->scene,delta)?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;}
 double rhizo_animation_get_time(const RhizoContext*c){return c?c->animation_player.time():0.0;}
-uint32_t rhizo_animation_get_key_count(const RhizoContext*c){return c?static_cast<uint32_t>(c->animation.key_count()):0;}
+uint32_t rhizo_animation_get_key_count(const RhizoContext*c){if(!c)return 0;if(c->active_animation_clip){auto it=c->animation_clips.find(c->active_animation_clip);return it==c->animation_clips.end()?0u:static_cast<uint32_t>(it->second.key_count());}return static_cast<uint32_t>(c->animation.key_count());}
 
 
 
 RhizoResult rhizo_animation_clip_create(RhizoContext*c,uint32_t clip){
- if(!c||clip==0||c->animation_clips.contains(clip))return RHIZO_ERROR_INVALID_ARGUMENT;try{c->animation_clips.emplace(clip,rhizo::Animation{});return RHIZO_SUCCESS;}catch(...){return RHIZO_ERROR_OUT_OF_MEMORY;}
+ if(!c||clip==0||c->animation_clips.contains(clip))return RHIZO_ERROR_INVALID_ARGUMENT;try{c->animation_clips.emplace(clip,rhizo::Animation{});c->animation_clip_names[clip]=std::string("Clip_")+std::to_string(clip);c->next_animation_clip_id=std::max(c->next_animation_clip_id,clip+1u);return RHIZO_SUCCESS;}catch(...){return RHIZO_ERROR_OUT_OF_MEMORY;}
+}
+RhizoResult rhizo_animation_clip_remove(RhizoContext*c,uint32_t clip){
+ if(!c||!c->animation_clips.contains(clip))return RHIZO_ERROR_INVALID_ARGUMENT;c->animation_clips.erase(clip);c->animation_clip_names.erase(clip);if(c->active_animation_clip==clip)c->active_animation_clip=0;c->animation_player.bind(nullptr);c->animation_state_machine=rhizo::AnimationStateMachine{};return RHIZO_SUCCESS;
+}
+uint32_t rhizo_animation_clip_get_count(const RhizoContext*c){return c?static_cast<uint32_t>(c->animation_clips.size()):0;}
+RhizoResult rhizo_animation_clip_get_info(const RhizoContext*c,uint32_t index,RhizoAnimationClipInfo*out){
+ if(!c||!out||out->struct_size<sizeof(RhizoAnimationClipInfo)||index>=c->animation_clips.size())return RHIZO_ERROR_INVALID_ARGUMENT;auto it=c->animation_clips.begin();std::advance(it,index);out->clip_id=it->first;out->key_count=static_cast<uint32_t>(it->second.key_count());out->duration=it->second.duration();std::memset(out->name,0,sizeof(out->name));auto name=c->animation_clip_names.find(it->first);const std::string label=name==c->animation_clip_names.end()?std::string("Clip_")+std::to_string(it->first):name->second;std::strncpy(out->name,label.c_str(),sizeof(out->name)-1);return RHIZO_SUCCESS;
+}
+RhizoResult rhizo_animation_clip_set_interpolation(RhizoContext*c,uint32_t clip,uint32_t id,uint32_t property,uint32_t mode){
+ if(!c||mode>3)return RHIZO_ERROR_INVALID_ARGUMENT;auto it=c->animation_clips.find(clip);if(it==c->animation_clips.end())return RHIZO_ERROR_INVALID_ARGUMENT;const auto interpolation=static_cast<rhizo::Interpolation>(mode);if(property<3)return it->second.set_interpolation(id,static_cast<rhizo::TrackProperty>(property),interpolation)?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;return it->second.set_parameter_interpolation(id,property,interpolation)?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;
+}
+RhizoResult rhizo_animation_clip_remove_keyframe(RhizoContext*c,uint32_t clip,uint32_t id,uint32_t property,double time){
+ if(!c||!std::isfinite(time))return RHIZO_ERROR_INVALID_ARGUMENT;auto it=c->animation_clips.find(clip);if(it==c->animation_clips.end())return RHIZO_ERROR_INVALID_ARGUMENT;const bool removed=property<3?it->second.remove_key(id,static_cast<rhizo::TrackProperty>(property),time):it->second.remove_parameter_key(id,property,time);return removed?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;
+}
+RhizoResult rhizo_animation_play_clip(RhizoContext*c,uint32_t clip,uint8_t restart){
+ if(!c)return RHIZO_ERROR_INVALID_ARGUMENT;auto it=c->animation_clips.find(clip);if(it==c->animation_clips.end())return RHIZO_ERROR_INVALID_ARGUMENT;c->active_animation_clip=clip;c->animation_player.bind(&it->second);c->animation_player.play(restart!=0);return RHIZO_SUCCESS;
+}
+RhizoResult rhizo_animation_clip_retarget(RhizoContext*c,uint32_t source,uint32_t destination,const uint32_t*from,const uint32_t*to,uint32_t count){
+ if(!c||!from||!to||count==0||count>100000||source==destination)return RHIZO_ERROR_INVALID_ARGUMENT;auto src=c->animation_clips.find(source),dst=c->animation_clips.find(destination);if(src==c->animation_clips.end()||dst==c->animation_clips.end())return RHIZO_ERROR_INVALID_ARGUMENT;std::unordered_map<uint32_t,uint32_t>mapping;for(uint32_t i=0;i<count;i++){if(!from[i]||!to[i])return RHIZO_ERROR_INVALID_ARGUMENT;mapping[from[i]]=to[i];}return rhizo::retarget_animation(src->second,mapping,dst->second)?RHIZO_SUCCESS:RHIZO_ERROR_INTERNAL;
 }
 RhizoResult rhizo_animation_clip_set_keyframe(RhizoContext*c,uint32_t clip,uint32_t id,uint32_t property,double time,const RhizoTransform*t){
  if(!c||!t||property>2)return RHIZO_ERROR_INVALID_ARGUMENT;auto it=c->animation_clips.find(clip);if(it==c->animation_clips.end())return RHIZO_ERROR_INVALID_ARGUMENT;rhizo::Transform v;v.position={t->position[0],t->position[1],t->position[2]};v.rotation={t->rotation_xyzw[3],t->rotation_xyzw[0],t->rotation_xyzw[1],t->rotation_xyzw[2]};v.scale={t->scale[0],t->scale[1],t->scale[2]};return it->second.set_key(id,static_cast<rhizo::TrackProperty>(property),time,v)?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;
@@ -554,7 +594,7 @@ RhizoResult rhizo_scene_save(RhizoContext*c,const char*path){
 }
 RhizoResult rhizo_scene_load(RhizoContext*c,const char*path){
  if(!c||!path||!*path)return RHIZO_ERROR_INVALID_ARGUMENT;rhizo::Scene loaded;std::string error;if(!rhizo::load_scene(loaded,path,error)){c->last_error=std::move(error);return RHIZO_ERROR_INTERNAL;}
- c->scene=std::move(loaded);c->animation=rhizo::Animation{};c->animation_player.bind(nullptr);c->animation_clips.clear();c->animation_state_machine=rhizo::AnimationStateMachine{};c->camera_shake_origins.clear();c->selected_entity=0;c->last_error.clear();return RHIZO_SUCCESS;
+ c->scene=std::move(loaded);c->animation=rhizo::Animation{};c->animation_player.bind(nullptr);c->animation_clips.clear();c->animation_clip_names.clear();c->next_animation_clip_id=1;c->active_animation_clip=0;c->animation_state_machine=rhizo::AnimationStateMachine{};c->camera_shake_origins.clear();c->selected_entity=0;c->last_error.clear();return RHIZO_SUCCESS;
 }
 RhizoResult rhizo_prefab_save(RhizoContext*c,uint32_t root,const char*path){
  if(!c||!path||!*path||!root)return RHIZO_ERROR_INVALID_ARGUMENT;std::string error;if(!rhizo::save_prefab(c->scene,root,path,error)){c->last_error=std::move(error);return RHIZO_ERROR_INTERNAL;}c->last_error.clear();return RHIZO_SUCCESS;

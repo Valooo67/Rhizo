@@ -19,12 +19,16 @@ struct Material {
   Vec3 emissive_color{0,0,0};
   std::string base_color_texture, normal_texture, metallic_roughness_texture, emissive_texture;
 };
-struct Vertex { Vec3 position,normal; Vec2 uv; Vec4 tangent{1,0,0,1}; };
+struct Vertex { Vec3 position,normal; Vec2 uv; Vec4 tangent{1,0,0,1}; uint32_t bone_indices[4]{}; Vec4 bone_weights{}; };
+struct MeshBone { std::string name; EntityId node=kInvalidEntity; Mat4 inverse_bind=Mat4::identity(); };
+struct MorphTarget { std::string name; std::vector<Vec3> position_deltas,normal_deltas; };
 struct Mesh {
   std::string name;
   std::vector<Vertex> vertices;
   std::vector<uint32_t> indices;
   uint32_t material_index=0;
+  std::vector<MeshBone> bones;
+  std::vector<MorphTarget> morph_targets;
 };
 struct CustomComponentSet { std::unordered_map<uint32_t,std::vector<uint8_t>> values; };
 struct SceneNode {
@@ -37,6 +41,7 @@ struct SceneNode {
   bool has_camera=false,has_light=false;
   CameraComponent camera;
   LightComponent light;
+  std::vector<float> morph_weights;
 };
 class Scene {
  public:
@@ -48,6 +53,7 @@ class Scene {
   Mat4 world_matrix(EntityId id) const;
   std::vector<EntityId> roots() const;
   void clear();
+  void copy_animation_state_from(const Scene& source);
   ComponentRegistry components;
   std::vector<SceneNode>& nodes(){return nodes_;}
   const std::vector<SceneNode>& nodes()const{return nodes_;}

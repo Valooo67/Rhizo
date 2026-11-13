@@ -20,6 +20,7 @@ bool Scene::destroy(EntityId id){
   auto*n=get(id);if(!n)return false;
   const EntityId parent=n->parent;const auto children=n->children;for(EntityId c:children)destroy(c);
   if(parent!=kInvalidEntity)if(auto*p=get(parent)){auto&v=p->children;v.erase(std::remove(v.begin(),v.end(),id),v.end());}
+  for(auto&mesh:meshes)for(auto&bone:mesh.bones)if(bone.node==id)bone.node=kInvalidEntity;
   components.remove_entity(id);
   nodes_.erase(std::remove_if(nodes_.begin(),nodes_.end(),[id](const SceneNode&x){return x.id==id;}),nodes_.end());return true;
 }
@@ -29,5 +30,6 @@ Mat4 Scene::world_matrix(EntityId id)const{
   return n->parent==kInvalidEntity?local:multiply(world_matrix(n->parent),local);
 }
 std::vector<EntityId> Scene::roots()const{std::vector<EntityId> r;for(const auto&n:nodes_)if(n.parent==kInvalidEntity)r.push_back(n.id);return r;}
+void Scene::copy_animation_state_from(const Scene&source){nodes_=source.nodes_;materials=source.materials;meshes.clear();meshes.resize(source.meshes.size());for(size_t i=0;i<source.meshes.size();i++)meshes[i].material_index=source.meshes[i].material_index;next_id_=source.next_id_;}
 void Scene::clear(){nodes_.clear();meshes.clear();materials.clear();components.clear();next_id_=1;}
 }

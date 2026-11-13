@@ -58,6 +58,7 @@ bool extract_zip(const fs::path&zip,const fs::path&dest,std::string&error){
 }
 Vec3 vec(aiVector3D v){return {v.x,v.y,v.z};}
 Quat quat(aiQuaternion q){return {q.x,q.y,q.z,q.w};}
+Mat4 mat4(const aiMatrix4x4&m){Mat4 o;o.v={m.a1,m.b1,m.c1,m.d1,m.a2,m.b2,m.c2,m.d2,m.a3,m.b3,m.c3,m.d3,m.a4,m.b4,m.c4,m.d4};return o;}
 std::string resolve_texture(const aiScene*scene,const fs::path&model_dir,const fs::path&cache,const aiString&texture){
  std::string raw=texture.C_Str();
  if(raw.empty())return {};
@@ -79,15 +80,15 @@ std::string resolve_texture(const aiScene*scene,const fs::path&model_dir,const f
  }
  return file.string();
 }
-void import_node(Scene&out,const aiScene*in,const aiNode*node,EntityId parent,uint32_t mesh_base,ImportReport&report){
- EntityId id=out.create(node->mName.C_Str(),parent);++report.nodes;
+void import_node(Scene&out,const aiScene*in,const aiNode*node,EntityId parent,uint32_t mesh_base,ImportReport&report,std::unordered_map<std::string,EntityId>&node_ids){
+ EntityId id=out.create(node->mName.C_Str(),parent);++report.nodes;if(id)node_ids.try_emplace(node->mName.C_Str(),id);
  aiVector3D scale,position;aiQuaternion rotation;node->mTransformation.Decompose(scale,rotation,position);
  if(auto*n=out.get(id)){n->local.position=vec(position);n->local.rotation=quat(rotation);n->local.scale=vec(scale);}
- for(unsigned i=0;i<node->mNumMeshes;i++)if(node->mMeshes[i]<in->mNumMeshes)out.get(id)->mesh_indices.push_back(mesh_base+node->mMeshes[i]);
- for(unsigned i=0;i<node->mNumChildren;i++)import_node(out,in,node->mChildren[i],id,mesh_base,report);
+ for(unsigned i=0;i<node->mNumMeshes;i++)if(node->mMeshes[i]<in->mNumMeshes){const uint32_t meshIndex=mesh_base+node->mMeshes[i];out.get(id)->mesh_indices.push_back(meshIndex);const size_t morphCount=out.meshes[meshIndex].morph_targets.size();if(out.get(id)->morph_weights.size()<morphCount)out.get(id)->morph_weights.resize(morphCount,0.0f);}
+ for(unsigned i=0;i<node->mNumChildren;i++)import_node(out,in,node->mChildren[i],id,mesh_base,report,node_ids);
 }
 }
-bool import_model(Scene&scene,const std::string&path,const std::string&cache,ImportReport&report,std::string&error){
+bool import_model(Scene&scene,const std::string&path,const std::string&cache,ImportReport&report,std::string&error,std::vector<AnimationClip>*animations){
  fs::path source(path),actual=source;std::error_code ec;
  if(!fs::exists(source)){error="Model file does not exist: "+path;return false;}
  if(source.extension()==".zip"||source.extension()==".ZIP"){
@@ -131,11 +132,29 @@ bool import_model(Scene&scene,const std::string&path,const std::string&cache,Imp
    if(src->HasTangentsAndBitangents()){const auto t=src->mTangents[v];x.tangent={t.x,t.y,t.z,1};}
    mesh.vertices.push_back(x);
   }
+  if(src->mNumBones>256){error="Mesh exceeds RHIZO's 256-bone skinning limit";return false;}mesh.bones.reserve(src->mNumBones);
+  for(unsigned bi=0;bi<src->mNumBones;bi++){
+   const aiBone*b=src->mBones[bi];MeshBone bone;bone.name=b->mName.C_Str();bone.inverse_bind=mat4(b->mOffsetMatrix);mesh.bones.push_back(std::move(bone));++report.bones;
+   for(unsigned wi=0;wi<b->mNumWeights;wi++){const aiVertexWeight&w=b->mWeights[wi];if(w.mVertexId>=mesh.vertices.size()||!std::isfinite(w.mWeight)||w.mWeight<=0)continue;Vertex&v=mesh.vertices[w.mVertexId];float weights[4]={v.bone_weights.x,v.bone_weights.y,v.bone_weights.z,v.bone_weights.w};uint32_t indices[4]={v.bone_indices[0],v.bone_indices[1],v.bone_indices[2],v.bone_indices[3]};uint32_t slot=0;for(uint32_t k=1;k<4;k++)if(weights[k]<weights[slot])slot=k;if(w.mWeight>weights[slot]){weights[slot]=w.mWeight;indices[slot]=bi;v.bone_weights={weights[0],weights[1],weights[2],weights[3]};for(uint32_t k=0;k<4;k++)v.bone_indices[k]=indices[k];}}
+  }
+  for(auto&v:mesh.vertices){const float total=v.bone_weights.x+v.bone_weights.y+v.bone_weights.z+v.bone_weights.w;if(total>1.0e-8f){v.bone_weights.x/=total;v.bone_weights.y/=total;v.bone_weights.z/=total;v.bone_weights.w/=total;}}
+  if(src->mNumAnimMeshes>32||uint64_t(src->mNumVertices)*src->mNumAnimMeshes>1000000ull){error="Mesh exceeds RHIZO's morph target storage limit";return false;}mesh.morph_targets.reserve(src->mNumAnimMeshes);
+  for(unsigned mi=0;mi<src->mNumAnimMeshes;mi++){const aiAnimMesh*morph=src->mAnimMeshes[mi];MorphTarget target;target.name=morph->mName.C_Str();target.position_deltas.resize(src->mNumVertices);target.normal_deltas.resize(src->mNumVertices);for(unsigned vi=0;vi<src->mNumVertices;vi++){if(morph->mVertices)target.position_deltas[vi]=vec(morph->mVertices[vi])-mesh.vertices[vi].position;if(morph->mNormals&&src->HasNormals())target.normal_deltas[vi]=vec(morph->mNormals[vi])-mesh.vertices[vi].normal;}mesh.morph_targets.push_back(std::move(target));++report.morph_targets;}
+
   for(unsigned f=0;f<src->mNumFaces;f++){const aiFace&face=src->mFaces[f];for(unsigned j=0;j<face.mNumIndices;j++)mesh.indices.push_back(face.mIndices[j]);}
   scene.meshes.push_back(std::move(mesh));++report.meshes;
  }
- report.model_path=actual.string();import_node(scene,in,in->mRootNode,kInvalidEntity,mesh_base,report);
- for(size_t i=mesh_base;i<scene.meshes.size();i++)scene.meshes[i].material_index=std::max(scene.meshes[i].material_index,material_base);
+ report.model_path=actual.string();std::unordered_map<std::string,EntityId>node_ids;import_node(scene,in,in->mRootNode,kInvalidEntity,mesh_base,report,node_ids);
+ for(size_t i=mesh_base;i<scene.meshes.size();i++){scene.meshes[i].material_index=std::max(scene.meshes[i].material_index,material_base);for(auto&bone:scene.meshes[i].bones){auto it=node_ids.find(bone.name);if(it!=node_ids.end())bone.node=it->second;}}
+ if(animations){animations->clear();animations->reserve(in->mNumAnimations);for(unsigned ai=0;ai<in->mNumAnimations;ai++){const aiAnimation*src=in->mAnimations[ai];AnimationClip clip;clip.name=src->mName.length?src->mName.C_Str():"Animation_"+std::to_string(ai);const double ticks=src->mTicksPerSecond>0?src->mTicksPerSecond:25.0;clip.animation.set_duration(src->mDuration/ticks);
+   for(unsigned ci=0;ci<src->mNumChannels;ci++){const aiNodeAnim*channel=src->mChannels[ci];auto found=node_ids.find(channel->mNodeName.C_Str());if(found==node_ids.end())continue;const EntityId entity=found->second;
+    for(unsigned k=0;k<channel->mNumPositionKeys;k++){Transform t;t.position=vec(channel->mPositionKeys[k].mValue);clip.animation.set_key(entity,TrackProperty::Position,channel->mPositionKeys[k].mTime/ticks,t);}
+    for(unsigned k=0;k<channel->mNumRotationKeys;k++){Transform t;t.rotation=quat(channel->mRotationKeys[k].mValue);clip.animation.set_key(entity,TrackProperty::Rotation,channel->mRotationKeys[k].mTime/ticks,t);}
+    for(unsigned k=0;k<channel->mNumScalingKeys;k++){Transform t;t.scale=vec(channel->mScalingKeys[k].mValue);clip.animation.set_key(entity,TrackProperty::Scale,channel->mScalingKeys[k].mTime/ticks,t);}
+   }
+   for(unsigned ci=0;ci<src->mNumMorphMeshChannels;ci++){const aiMeshMorphAnim*channel=src->mMorphMeshChannels[ci];for(size_t meshOffset=0;meshOffset<scene.meshes.size()-mesh_base;meshOffset++){const uint32_t meshIndex=mesh_base+static_cast<uint32_t>(meshOffset);const Mesh&mesh=scene.meshes[meshIndex];if(mesh.name!=channel->mName.C_Str())continue;for(const auto&node:scene.nodes()){if(std::find(node.mesh_indices.begin(),node.mesh_indices.end(),meshIndex)==node.mesh_indices.end())continue;for(unsigned keyIndex=0;keyIndex<channel->mNumKeys;keyIndex++){const aiMeshMorphKey&key=channel->mKeys[keyIndex];for(unsigned valueIndex=0;valueIndex<key.mNumValuesAndWeights;valueIndex++){const uint32_t target=key.mValues[valueIndex];if(target>=mesh.morph_targets.size()||target>=32)continue;clip.animation.set_parameter_key(node.id,17u+target,key.mTime/ticks,{static_cast<float>(key.mWeights[valueIndex]),0,0,0});}}}}}
+   if(clip.animation.key_count()>0||clip.animation.duration()>0)animations->push_back(std::move(clip));
+  }report.animations=static_cast<uint32_t>(animations->size());}
  return true;
 }
 }

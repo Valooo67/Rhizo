@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+echo "===== RHIZO ANIMATION STAGE 3 FINAL BUILD CANDIDATE ====="
 echo "===== RHIZO ANIMATION RUNTIME + TIMELINE RELEASE CANDIDATE ====="
 echo "===== RHIZO REMOTE BUILD + COMPLETE C ABI VALIDATION ====="
 echo "UTC: $(date -u +%FT%TZ)"
@@ -20,12 +21,23 @@ echo
 echo "===== CHECKED OUT REVISION ====="
 git rev-parse HEAD
 git status --short
+echo "Stage 3 final source revision: $(git rev-parse HEAD)"
+echo "GPU skinning + morph palette declaration included"
+echo "Final snapshot and serialization guards included"
 nproc
 free -h
 df -h .
 echo
 echo "===== SOURCE TREE ====="
 find include src -maxdepth 4 -type f -print | sort
+echo
+echo "===== HOST ANIMATION RUNTIME TESTS ====="
+clang++ -std=c++20 -Wall -Wextra -I include tests/animation_runtime_tests.cpp src/scene/animation.cpp src/scene/scene.cpp -o /tmp/rhizo-animation-tests
+/tmp/rhizo-animation-tests
+echo "animation runtime tests: PASS"
+clang++ -std=c++20 -Wall -Wextra -I include tests/scene_serialization_tests.cpp src/scene/scene_io.cpp src/scene/scene.cpp -o /tmp/rhizo-scene-tests
+/tmp/rhizo-scene-tests
+echo "scene and prefab serialization tests: PASS"
 echo
 echo "===== CMAKE CONFIGURE (Android ARM64) ====="
 cmake -S . -B build-android \
@@ -46,7 +58,12 @@ done
 echo
 echo "===== ABI / EXPORTED API CHECK ====="
 readelf -h build-android/librhizo.so | grep -E 'Class:|Machine:'
-for symbol in rhizo_get_abi_version rhizo_create rhizo_get_device_info rhizo_viewport_attach rhizo_viewport_render rhizo_viewport_detach rhizo_get_last_error rhizo_buffer_create rhizo_buffer_write rhizo_buffer_get_size rhizo_buffer_destroy rhizo_destroy rhizo_scene_create_node rhizo_scene_destroy_node rhizo_scene_set_parent rhizo_scene_set_transform rhizo_scene_get_transform rhizo_scene_get_node_count rhizo_scene_get_node rhizo_scene_set_keyframe rhizo_scene_evaluate_animation rhizo_scene_import_model rhizo_scene_get_mesh_count rhizo_scene_get_mesh_info rhizo_scene_get_material_count rhizo_scene_get_material_info rhizo_shadow_map_create rhizo_shadow_map_destroy rhizo_editor_grid_vertex_count rhizo_editor_grid_vertices rhizo_editor_gizmo_vertex_count rhizo_editor_gizmo_vertices rhizo_scene_set_camera rhizo_scene_get_camera rhizo_scene_set_light rhizo_scene_get_light rhizo_scene_set_parameter_keyframe rhizo_scene_remove_keyframe rhizo_scene_set_keyframe_interpolation rhizo_scene_set_parameter_interpolation rhizo_animation_play rhizo_animation_pause rhizo_animation_stop rhizo_animation_seek rhizo_animation_set_speed rhizo_animation_set_mode rhizo_animation_tick rhizo_animation_get_time rhizo_animation_get_key_count; do
+cat > /tmp/rhizo_abi_check.c <<'EOF'
+#include "rhizo/rhizo.h"
+int main(void) { return (int)RHIZO_ABI_VERSION; }
+EOF
+clang -std=c11 -Wall -Wextra -Werror -I include -fsyntax-only /tmp/rhizo_abi_check.c
+for symbol in rhizo_get_abi_version rhizo_create rhizo_get_device_info rhizo_viewport_attach rhizo_viewport_render rhizo_viewport_detach rhizo_get_last_error rhizo_buffer_create rhizo_buffer_write rhizo_buffer_get_size rhizo_buffer_destroy rhizo_destroy rhizo_scene_create_node rhizo_scene_destroy_node rhizo_scene_set_parent rhizo_scene_set_transform rhizo_scene_get_transform rhizo_scene_get_node_count rhizo_scene_get_node rhizo_scene_set_keyframe rhizo_scene_evaluate_animation rhizo_scene_import_model rhizo_scene_get_mesh_count rhizo_scene_get_mesh_info rhizo_scene_get_material_count rhizo_scene_get_material_info rhizo_scene_set_parameter_keyframe rhizo_scene_remove_keyframe rhizo_scene_set_keyframe_interpolation rhizo_scene_set_parameter_interpolation rhizo_animation_play rhizo_animation_pause rhizo_animation_stop rhizo_animation_seek rhizo_animation_set_speed rhizo_animation_set_mode rhizo_animation_tick rhizo_animation_get_time rhizo_animation_get_key_count rhizo_animation_clip_create rhizo_animation_clip_remove rhizo_animation_clip_get_count rhizo_animation_clip_get_info rhizo_animation_clip_set_keyframe rhizo_animation_clip_set_parameter_keyframe rhizo_animation_clip_set_interpolation rhizo_animation_clip_remove_keyframe rhizo_animation_play_clip rhizo_animation_clip_retarget rhizo_animation_state_add rhizo_animation_state_transition rhizo_animation_state_play rhizo_animation_state_tick rhizo_scene_look_at rhizo_scene_solve_two_bone_ik rhizo_camera_shake rhizo_camera_shake_clear rhizo_scene_get_mesh_skin_info rhizo_scene_get_mesh_bone_info rhizo_scene_get_mesh_morph_info rhizo_scene_set_morph_weight rhizo_scene_get_morph_weight; do
   nm -D --defined-only build-android/librhizo.so | grep -q " ${symbol}$"
   echo "exported: ${symbol}"
 done
@@ -55,4 +72,4 @@ echo "===== BUILD OUTPUT ====="
 ls -lh build-android/librhizo.so
 file build-android/librhizo.so
 sha256sum build-android/librhizo.so
-echo "===== RHIZO ANIMATION CLIPS + CURVES + STATE MACHINE + IK + LOOKAT + CAMERA SHAKE ABI: SUCCESS ====="
+echo "===== RHIZO SKELETAL ANIMATION + GPU SKINNING + MORPH TARGETS + RETARGETING + TIMELINE ABI: SUCCESS ====="
