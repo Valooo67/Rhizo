@@ -272,7 +272,7 @@ RhizoResult rhizo_opengl_submit_frame(RhizoContext*c,const RhizoOpenGLFrameInfo*
   if(!gpu->create(c->vulkan,static_cast<VkDeviceSize>(bytes),VK_BUFFER_USAGE_STORAGE_BUFFER_BIT|VK_BUFFER_USAGE_TRANSFER_SRC_BIT,true,error)||
      !gpu->write(0,staging.data(),static_cast<VkDeviceSize>(bytes),error)){c->last_error=std::move(error);return RHIZO_ERROR_VULKAN;}
   auto texture=std::make_unique<rhizo::FrameTexture>();
-  if(!texture->upload(c->vulkan,gpu->handle(),i->width,i->height,i->stride_bytes,i->pixel_format==RHIZO_FRAME_BGRA8,error)){c->last_error=std::move(error);return RHIZO_ERROR_VULKAN;}
+  if(!texture->upload(c->vulkan,gpu->handle(),i->width,i->height,i->stride_bytes,i->pixel_format==RHIZO_FRAME_BGRA8,error,true)){c->last_error=std::move(error);return RHIZO_ERROR_VULKAN;}
   c->opengl_frame.swap(staging);c->opengl_frame_info=*i;c->opengl_frame_gpu=std::move(gpu);c->opengl_frame_texture=std::move(texture);return RHIZO_SUCCESS;
  }catch(...){c->last_error="OpenGL frame upload allocation failed";return RHIZO_ERROR_OUT_OF_MEMORY;}
 }
