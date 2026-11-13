@@ -18,7 +18,7 @@ bool Animation::set_key(EntityId id,TrackProperty p,double t,const Transform&v){
  it->keys[t]={t,v};duration_=std::max(duration_,t);return true;
 }
 bool Animation::set_parameter_key(EntityId id,uint32_t property,double t,Vec4 value){
- if(id==kInvalidEntity||property<3||property>16||!std::isfinite(t)||t<0)return false;
+ if(id==kInvalidEntity||property<3||property>272||!std::isfinite(t)||t<0)return false;
  if(!std::isfinite(value.x)||!std::isfinite(value.y)||!std::isfinite(value.z)||!std::isfinite(value.w))return false;
  auto it=std::find_if(parameter_tracks_.begin(),parameter_tracks_.end(),[&](const auto&x){return x.entity==id&&x.property==property;});
  if(it==parameter_tracks_.end()){parameter_tracks_.push_back({id,property,Interpolation::Linear,{}});it=std::prev(parameter_tracks_.end());}
