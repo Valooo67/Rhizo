@@ -24,20 +24,20 @@ bool Animation::set_parameter_key(EntityId id,uint32_t property,double t,Vec4 va
  if(it==parameter_tracks_.end()){parameter_tracks_.push_back({id,property,Interpolation::Linear,{}});it=std::prev(parameter_tracks_.end());}
  it->keys[t]={t,value};duration_=std::max(duration_,t);return true;
 }
-bool Animation::remove_key(EntityId id,TrackProperty p,double t){auto it=std::find_if(tracks_.begin(),tracks_.end(),[&](const auto&x){return x.entity==id&&x.property==p;});return it!=tracks_.end()&&it->keys.erase(t)>0;}
-bool Animation::remove_parameter_key(EntityId id,uint32_t p,double t){auto it=std::find_if(parameter_tracks_.begin(),parameter_tracks_.end(),[&](const auto&x){return x.entity==id&&x.property==p;});return it!=parameter_tracks_.end()&&it->keys.erase(t)>0;}
+bool Animation::remove_key(EntityId id,TrackProperty p,double t){auto it=std::find_if(tracks_.begin(),tracks_.end(),[&](const auto&x){return x.entity==id&&x.property==p;});if(it==tracks_.end()||it->keys.erase(t)==0)return false;if(it->keys.empty())tracks_.erase(it);duration_=0;for(const auto&track:tracks_)if(!track.keys.empty())duration_=std::max(duration_,track.keys.rbegin()->first);for(const auto&track:parameter_tracks_)if(!track.keys.empty())duration_=std::max(duration_,track.keys.rbegin()->first);return true;}
+bool Animation::remove_parameter_key(EntityId id,uint32_t p,double t){auto it=std::find_if(parameter_tracks_.begin(),parameter_tracks_.end(),[&](const auto&x){return x.entity==id&&x.property==p;});if(it==parameter_tracks_.end()||it->keys.erase(t)==0)return false;if(it->keys.empty())parameter_tracks_.erase(it);duration_=0;for(const auto&track:tracks_)if(!track.keys.empty())duration_=std::max(duration_,track.keys.rbegin()->first);for(const auto&track:parameter_tracks_)if(!track.keys.empty())duration_=std::max(duration_,track.keys.rbegin()->first);return true;}
 bool Animation::set_interpolation(EntityId id,TrackProperty p,Interpolation mode){if(static_cast<uint32_t>(mode)>3)return false;auto it=std::find_if(tracks_.begin(),tracks_.end(),[&](const auto&x){return x.entity==id&&x.property==p;});if(it==tracks_.end())return false;it->interpolation=mode;return true;}
 bool Animation::set_parameter_interpolation(EntityId id,uint32_t p,Interpolation mode){if(static_cast<uint32_t>(mode)>3)return false;auto it=std::find_if(parameter_tracks_.begin(),parameter_tracks_.end(),[&](const auto&x){return x.entity==id&&x.property==p;});if(it==parameter_tracks_.end())return false;it->interpolation=mode;return true;}
 size_t Animation::key_count()const{size_t n=0;for(const auto&t:tracks_)n+=t.keys.size();for(const auto&t:parameter_tracks_)n+=t.keys.size();return n;}
 bool Animation::evaluate(Scene&scene,double time)const{
  if(!std::isfinite(time))return false;
- for(const auto&track:tracks_){auto*n=scene.get(track.entity);if(!n||track.keys.empty())continue;auto [lo,hi]=sample_pair(track.keys,time);const double span=hi->first-lo->first;float t=span>0?ease(track.interpolation,static_cast<float>((time-lo->first)/span)):0.0f;
+ for(const auto&track:tracks_){auto*n=scene.get(track.entity);if(!n||track.keys.empty())continue;auto [lo,hi]=sample_pair(track.keys,time);const double span=hi->first-lo->first;float t=span>0?(track.interpolation==Interpolation::Step?(time>=hi->first?1.0f:0.0f):ease(track.interpolation,static_cast<float>((time-lo->first)/span))):0.0f;
   const Transform&a=lo->second.value,&b=hi->second.value;
   if(track.property==TrackProperty::Position){if(track.interpolation==Interpolation::Cubic&&lo!=track.keys.begin()&&std::next(hi)!=track.keys.end())n->local.position=catmull(std::prev(lo)->second.value.position,a.position,b.position,std::next(hi)->second.value.position,t);else n->local.position=a.position+(b.position-a.position)*t;}
   else if(track.property==TrackProperty::Scale){if(track.interpolation==Interpolation::Cubic&&lo!=track.keys.begin()&&std::next(hi)!=track.keys.end())n->local.scale=catmull(std::prev(lo)->second.value.scale,a.scale,b.scale,std::next(hi)->second.value.scale,t);else n->local.scale=a.scale+(b.scale-a.scale)*t;}
   else n->local.rotation=slerp(a.rotation,b.rotation,t);
  }
- for(const auto&track:parameter_tracks_){auto*n=scene.get(track.entity);if(!n||track.keys.empty())continue;auto [lo,hi]=sample_pair(track.keys,time);const double span=hi->first-lo->first;float t=span>0?ease(track.interpolation,static_cast<float>((time-lo->first)/span)):0.0f;const Vec4 a=lo->second.value,b=hi->second.value;Vec4 v=track.interpolation==Interpolation::Cubic&&lo!=track.keys.begin()&&std::next(hi)!=track.keys.end()?catmull4(std::prev(lo)->second.value,a,b,std::next(hi)->second.value,t):mix4(a,b,t);
+ for(const auto&track:parameter_tracks_){auto*n=scene.get(track.entity);if(!n||track.keys.empty())continue;auto [lo,hi]=sample_pair(track.keys,time);const double span=hi->first-lo->first;float t=span>0?(track.interpolation==Interpolation::Step?(time>=hi->first?1.0f:0.0f):ease(track.interpolation,static_cast<float>((time-lo->first)/span))):0.0f;const Vec4 a=lo->second.value,b=hi->second.value;Vec4 v=track.interpolation==Interpolation::Cubic&&lo!=track.keys.begin()&&std::next(hi)!=track.keys.end()?catmull4(std::prev(lo)->second.value,a,b,std::next(hi)->second.value,t):mix4(a,b,t);
   switch(track.property){
    case 3:if(n->has_camera)n->camera.vertical_fov=std::clamp(v.x,0.01f,3.13f);break;
    case 4:if(n->has_camera)n->camera.near_plane=std::max(v.x,0.001f);break;
@@ -75,11 +75,17 @@ bool AnimationStateMachine::update(Scene&scene,double delta){
  Scene from=scene,to=scene;outgoing_player_.tick(from,delta);player_.tick(to,delta);
  transition_.elapsed=std::min(transition_.duration,transition_.elapsed+delta);const float w=static_cast<float>(transition_progress());
  auto&dst=scene.nodes();const auto&aa=from.nodes();const auto&bb=to.nodes();
- for(size_t i=0;i<dst.size()&&i<aa.size()&&i<bb.size();++i){dst[i].local.position=aa[i].local.position+(bb[i].local.position-aa[i].local.position)*w;dst[i].local.scale=aa[i].local.scale+(bb[i].local.scale-aa[i].local.scale)*w;dst[i].local.rotation=slerp(aa[i].local.rotation,bb[i].local.rotation,w);
-  if(dst[i].has_camera&&aa[i].has_camera&&bb[i].has_camera){dst[i].camera.vertical_fov=aa[i].camera.vertical_fov+(bb[i].camera.vertical_fov-aa[i].camera.vertical_fov)*w;dst[i].camera.near_plane=aa[i].camera.near_plane+(bb[i].camera.near_plane-aa[i].camera.near_plane)*w;dst[i].camera.far_plane=aa[i].camera.far_plane+(bb[i].camera.far_plane-aa[i].camera.far_plane)*w;dst[i].camera.orthographic_size=aa[i].camera.orthographic_size+(bb[i].camera.orthographic_size-aa[i].camera.orthographic_size)*w;}
-  if(dst[i].has_light&&aa[i].has_light&&bb[i].has_light){dst[i].light.intensity=aa[i].light.intensity+(bb[i].light.intensity-aa[i].light.intensity)*w;dst[i].light.range=aa[i].light.range+(bb[i].light.range-aa[i].light.range)*w;dst[i].light.color=aa[i].light.color+(bb[i].light.color-aa[i].light.color)*w;}
+ for(size_t i=0;i<dst.size()&&i<aa.size()&&i<bb.size();++i){
+  dst[i].local.position=aa[i].local.position+(bb[i].local.position-aa[i].local.position)*w;
+  dst[i].local.scale=aa[i].local.scale+(bb[i].local.scale-aa[i].local.scale)*w;
+  dst[i].local.rotation=slerp(aa[i].local.rotation,bb[i].local.rotation,w);
+  const auto&ca=aa[i].camera;const auto&cb=bb[i].camera;auto&cd=dst[i].camera;
+  if(dst[i].has_camera&&aa[i].has_camera&&bb[i].has_camera){cd.vertical_fov=ca.vertical_fov+(cb.vertical_fov-ca.vertical_fov)*w;cd.near_plane=ca.near_plane+(cb.near_plane-ca.near_plane)*w;cd.far_plane=ca.far_plane+(cb.far_plane-ca.far_plane)*w;cd.orthographic_size=ca.orthographic_size+(cb.orthographic_size-ca.orthographic_size)*w;}
+  const auto&la=aa[i].light;const auto&lb=bb[i].light;auto&ld=dst[i].light;
+  if(dst[i].has_light&&aa[i].has_light&&bb[i].has_light){ld.intensity=la.intensity+(lb.intensity-la.intensity)*w;ld.range=la.range+(lb.range-la.range)*w;ld.inner_cone=la.inner_cone+(lb.inner_cone-la.inner_cone)*w;ld.outer_cone=la.outer_cone+(lb.outer_cone-la.outer_cone)*w;ld.color=la.color+(lb.color-la.color)*w;}
+  const size_t morphCount=std::min(aa[i].morph_weights.size(),bb[i].morph_weights.size());dst[i].morph_weights.resize(std::max(aa[i].morph_weights.size(),bb[i].morph_weights.size()));for(size_t j=0;j<morphCount;j++)dst[i].morph_weights[j]=aa[i].morph_weights[j]+(bb[i].morph_weights[j]-aa[i].morph_weights[j])*w;
  }
- for(size_t i=0;i<scene.materials.size()&&i<from.materials.size()&&i<to.materials.size();++i){auto&m=scene.materials[i];const auto&a=from.materials[i];const auto&b=to.materials[i];m.base_color=mix4(a.base_color,b.base_color,w);m.metallic=a.metallic+(b.metallic-a.metallic)*w;m.roughness=a.roughness+(b.roughness-a.roughness)*w;}
+ for(size_t i=0;i<scene.materials.size()&&i<from.materials.size()&&i<to.materials.size();++i){auto&m=scene.materials[i];const auto&a=from.materials[i];const auto&b=to.materials[i];m.base_color=mix4(a.base_color,b.base_color,w);m.metallic=a.metallic+(b.metallic-a.metallic)*w;m.roughness=a.roughness+(b.roughness-a.roughness)*w;m.normal_scale=a.normal_scale+(b.normal_scale-a.normal_scale)*w;m.occlusion=a.occlusion+(b.occlusion-a.occlusion)*w;m.emissive_color=a.emissive_color+(b.emissive_color-a.emissive_color)*w;}
  if(w>=1.0f)blending_=false;return true;
 }
 double AnimationStateMachine::transition_progress()const{return transition_.duration>0?std::clamp(transition_.elapsed/transition_.duration,0.0,1.0):1.0;}
@@ -88,6 +94,13 @@ namespace {
 Quat multiply_quat(Quat a,Quat b){return {a.w*b.x+a.x*b.w+a.y*b.z-a.z*b.y,a.w*b.y-a.x*b.z+a.y*b.w+a.z*b.x,a.w*b.z+a.x*b.y-a.y*b.x+a.z*b.w,a.w*b.w-a.x*b.x-a.y*b.y-a.z*b.z};}
 Quat from_to(Vec3 a,Vec3 b){a=normalize(a);b=normalize(b);const float d=std::clamp(dot(a,b),-1.0f,1.0f);if(d>0.99999f)return Quat::identity();if(d<-0.99999f){Vec3 axis=normalize(cross(a,std::fabs(a.x)<0.8f?Vec3{1,0,0}:Vec3{0,1,0}));return {axis.x,axis.y,axis.z,0};}const Vec3 c=cross(a,b);const float s=std::sqrt((1.0f+d)*2.0f),inv=1.0f/s;return {c.x*inv,c.y*inv,c.z*inv,s*0.5f};}
 Vec3 matrix_position(const Mat4&m){return {m.v[12],m.v[13],m.v[14]};}
+}
+
+bool retarget_animation(const Animation&source,const std::unordered_map<EntityId,EntityId>&mapping,Animation&destination){
+ Animation result;result.set_duration(source.duration());
+ for(const auto&track:source.tracks()){auto it=mapping.find(track.entity);if(it==mapping.end())continue;for(const auto&[time,key]:track.keys)if(!result.set_key(it->second,track.property,time,key.value))return false;if(!track.keys.empty())result.set_interpolation(it->second,track.property,track.interpolation);}
+ for(const auto&track:source.parameter_tracks()){auto it=mapping.find(track.entity);if(it==mapping.end())continue;for(const auto&[time,key]:track.keys)if(!result.set_parameter_key(it->second,track.property,time,key.value))return false;if(!track.keys.empty())result.set_parameter_interpolation(it->second,track.property,track.interpolation);}
+ destination=std::move(result);return true;
 }
 bool solve_look_at(Scene&scene,EntityId entity,EntityId target,float weight){
  auto*n=scene.get(entity);auto*t=scene.get(target);if(!n||!t||entity==target||!std::isfinite(weight))return false;weight=std::clamp(weight,0.0f,1.0f);const Vec3 origin=matrix_position(scene.world_matrix(entity)),destination=matrix_position(scene.world_matrix(target));const Vec3 direction=destination-origin;if(length(direction)<1.0e-5f)return false;const Mat4 world=scene.world_matrix(entity);const Vec3 forward=normalize({-world.v[8],-world.v[9],-world.v[10]});const Quat delta=from_to(forward,direction);n->local.rotation=slerp(n->local.rotation,multiply_quat(delta,n->local.rotation),weight);return true;
