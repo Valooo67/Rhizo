@@ -27,6 +27,8 @@ struct Mesh {
   std::vector<Vertex> vertices;
   std::vector<uint32_t> indices;
   uint32_t material_index=0;
+  std::vector<MeshBone> bones;
+  std::vector<MorphTarget> morph_targets;
 };
 struct CustomComponentSet { std::unordered_map<uint32_t,std::vector<uint8_t>> values; };
 struct SceneNode {
@@ -39,6 +41,7 @@ struct SceneNode {
   bool has_camera=false,has_light=false;
   CameraComponent camera;
   LightComponent light;
+  std::vector<float> morph_weights;
 };
 class Scene {
  public:
