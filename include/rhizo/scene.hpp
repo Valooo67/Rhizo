@@ -26,6 +26,7 @@ struct Mesh {
   std::vector<uint32_t> indices;
   uint32_t material_index=0;
 };
+struct CustomComponentSet { std::unordered_map<uint32_t,std::vector<uint8_t>> values; };
 struct SceneNode {
   EntityId id=kInvalidEntity,parent=kInvalidEntity;
   std::string name;
