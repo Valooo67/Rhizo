@@ -35,6 +35,7 @@ class Viewport final {
   struct MeshGpuCache {
     std::unique_ptr<GpuBuffer> vertices,indices;
     std::array<std::unique_ptr<GpuBuffer>,2> lod_indices;
+    std::array<std::unique_ptr<GpuBuffer>,3> instance_buffers;
     std::array<uint32_t,2> lod_index_counts{};
     const Vertex* source_vertices=nullptr;
     const uint32_t* source_indices=nullptr;
@@ -67,7 +68,7 @@ class Viewport final {
   VkImageView depth_view_=VK_NULL_HANDLE;
   VkRenderPass render_pass_=VK_NULL_HANDLE;
   VkPipelineLayout pipeline_layout_=VK_NULL_HANDLE;
-  VkPipeline triangle_pipeline_=VK_NULL_HANDLE,triangle_no_cull_pipeline_=VK_NULL_HANDLE,line_pipeline_=VK_NULL_HANDLE,shadow_pipeline_=VK_NULL_HANDLE,skybox_pipeline_=VK_NULL_HANDLE;
+  VkPipeline triangle_pipeline_=VK_NULL_HANDLE,triangle_no_cull_pipeline_=VK_NULL_HANDLE,triangle_instanced_pipeline_=VK_NULL_HANDLE,triangle_instanced_no_cull_pipeline_=VK_NULL_HANDLE,line_pipeline_=VK_NULL_HANDLE,shadow_pipeline_=VK_NULL_HANDLE,skybox_pipeline_=VK_NULL_HANDLE;
   VkPipelineLayout shadow_pipeline_layout_=VK_NULL_HANDLE;
   VkDescriptorSetLayout scene_set_layout_=VK_NULL_HANDLE;
   VkDescriptorPool scene_descriptor_pool_=VK_NULL_HANDLE;
