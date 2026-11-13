@@ -9,7 +9,7 @@ namespace rhizo {
 class ComponentRegistry {
   struct IStorage {
     virtual ~IStorage()=default;
-    virtual void erase(EntityId)=0;
+    virtual void erase(uint32_t)=0;
     virtual bool contains(EntityId)const=0;
     virtual std::unique_ptr<IStorage> clone()const=0;
   };
