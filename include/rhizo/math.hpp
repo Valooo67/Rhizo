@@ -39,6 +39,11 @@ inline Mat4 multiply(const Mat4&a,const Mat4&b){
   for(size_t c=0;c<4u;c++)for(size_t r=0;r<4u;r++)for(size_t k=0;k<4u;k++)o.v[c*4u+r]+=a.v[k*4u+r]*b.v[c*4u+k];
   return o;
 }
+inline Mat4 inverse(const Mat4&input){
+ float a[4][8]{};for(size_t r=0;r<4;r++){for(size_t c=0;c<4;c++)a[r][c]=input.v[c*4+r];a[r][r+4]=1.0f;}
+ for(size_t c=0;c<4;c++){size_t pivot=c;for(size_t r=c+1;r<4;r++)if(std::fabs(a[r][c])>std::fabs(a[pivot][c]))pivot=r;if(std::fabs(a[pivot][c])<1.0e-10f)return Mat4::identity();if(pivot!=c)for(size_t k=0;k<8;k++)std::swap(a[pivot][k],a[c][k]);const float divisor=a[c][c];for(size_t k=0;k<8;k++)a[c][k]/=divisor;for(size_t r=0;r<4;r++)if(r!=c){const float factor=a[r][c];for(size_t k=0;k<8;k++)a[r][k]-=factor*a[c][k];}}
+ Mat4 out{};for(size_t r=0;r<4;r++)for(size_t c=0;c<4;c++)out.v[c*4+r]=a[r][c+4];return out;
+}
 inline Mat4 compose(Vec3 p,Quat q,Vec3 s){
   const float x=q.x,y=q.y,z=q.z,w=q.w;
   Mat4 m=Mat4::identity();
