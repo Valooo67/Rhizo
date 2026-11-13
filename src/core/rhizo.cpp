@@ -7,6 +7,8 @@
 #include "rhizo/scene.hpp"
 #include "rhizo/animation.hpp"
 #include "rhizo/model_importer.hpp"
+#include "rhizo/scene_io.hpp"
+#include "rhizo/resource_manager.hpp"
 #include "rhizo/shadow_map.hpp"
 #include "rhizo/editor_geometry.hpp"
 
@@ -29,6 +31,8 @@ struct RhizoContext {
   std::string last_error;
   std::vector<RhizoBuffer*> buffers;
   rhizo::Scene scene;
+  rhizo::AssetManager assets;
+  rhizo::ResourceManager resources;
   rhizo::Animation animation;
   rhizo::AnimationPlayer animation_player;
   std::map<uint32_t,rhizo::Animation> animation_clips;
@@ -42,6 +46,8 @@ struct RhizoContext {
   std::unique_ptr<rhizo::GpuBuffer> opengl_frame_gpu;
   std::unique_ptr<rhizo::FrameTexture> opengl_frame_texture;
 };
+
+struct RhizoTexture { std::shared_ptr<const rhizo::TextureResource> resource; };
 
 struct RhizoBuffer {
   RhizoContext* owner = nullptr;
@@ -385,10 +391,15 @@ RhizoResult rhizo_scene_set_keyframe(RhizoContext*c,uint32_t id,uint32_t propert
 RhizoResult rhizo_scene_evaluate_animation(RhizoContext*c,double time){return c&&c->animation.evaluate(c->scene,time)?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;}
 RhizoResult rhizo_scene_import_model(RhizoContext*c,const char*path,const char*cache,RhizoImportReport*out){
   if(!c||!path||!*path||!out||out->struct_size<sizeof(RhizoImportReport))return RHIZO_ERROR_INVALID_ARGUMENT;
-  rhizo::ImportReport report;std::string error;
-  if(!rhizo::import_model(c->scene,path,cache?cache:"",report,error)){c->last_error=std::move(error);return RHIZO_ERROR_INTERNAL;}
-  out->node_count=report.nodes;out->mesh_count=report.meshes;out->material_count=report.materials;
-  std::memset(out->resolved_model_path,0,sizeof(out->resolved_model_path));std::strncpy(out->resolved_model_path,report.model_path.c_str(),sizeof(out->resolved_model_path)-1);return RHIZO_SUCCESS;
+  std::string error;auto resource=c->resources.load_model(path,cache?cache:"",error);
+  if(!resource){c->last_error=std::move(error);return RHIZO_ERROR_INTERNAL;}
+  const rhizo::Scene&source=resource->scene;const uint32_t meshBase=static_cast<uint32_t>(c->scene.meshes.size()),materialBase=static_cast<uint32_t>(c->scene.materials.size());
+  for(const auto&m:source.materials)c->scene.materials.push_back(m);
+  for(auto m:source.meshes){if(m.material_index<source.materials.size())m.material_index+=materialBase;c->scene.meshes.push_back(std::move(m));}
+  std::unordered_map<uint32_t,uint32_t> ids;for(const auto&n:source.nodes()){uint32_t id=c->scene.create(n.name);if(!id){c->last_error="Failed to instantiate cached model scene";return RHIZO_ERROR_INTERNAL;}ids[n.id]=id;}
+  for(const auto&n:source.nodes()){auto*dst=c->scene.get(ids[n.id]);dst->local=n.local;dst->visible=n.visible;dst->has_camera=n.has_camera;dst->camera=n.camera;dst->has_light=n.has_light;dst->light=n.light;for(uint32_t m:n.mesh_indices)dst->mesh_indices.push_back(meshBase+m);if(n.parent&&!c->scene.set_parent(dst->id,ids[n.parent])){c->last_error="Cached model hierarchy is invalid";return RHIZO_ERROR_INTERNAL;}}
+  out->node_count=static_cast<uint32_t>(source.nodes().size());out->mesh_count=static_cast<uint32_t>(source.meshes.size());out->material_count=static_cast<uint32_t>(source.materials.size());
+  std::memset(out->resolved_model_path,0,sizeof(out->resolved_model_path));std::strncpy(out->resolved_model_path,resource->source.c_str(),sizeof(out->resolved_model_path)-1);c->last_error.clear();return RHIZO_SUCCESS;
 }
 uint32_t rhizo_scene_get_mesh_count(const RhizoContext*c){return c?static_cast<uint32_t>(c->scene.meshes.size()):0;}
 RhizoResult rhizo_scene_get_mesh_info(const RhizoContext*c,uint32_t i,RhizoMeshInfo*out){
@@ -536,5 +547,58 @@ RhizoResult rhizo_scene_set_material_info(RhizoContext*c,uint32_t i,const RhizoM
  auto read=[](const char*s,size_t n,std::string&out){const void*end=std::memchr(s,0,n);if(!end)return false;out.assign(s,static_cast<size_t>(static_cast<const char*>(end)-s));return true;};
  std::string paths[4];if(!read(in->base_color_texture,sizeof(in->base_color_texture),paths[0])||!read(in->normal_texture,sizeof(in->normal_texture),paths[1])||!read(in->metallic_roughness_texture,sizeof(in->metallic_roughness_texture),paths[2])||!read(in->emissive_texture,sizeof(in->emissive_texture),paths[3]))return RHIZO_ERROR_INVALID_ARGUMENT;
  auto&m=c->scene.materials[i];m.base_color={in->base_color[0],in->base_color[1],in->base_color[2],in->base_color[3]};m.metallic=in->metallic;m.roughness=in->roughness;m.normal_scale=normalScale;m.occlusion=occlusion;m.emissive_color={emissive[0],emissive[1],emissive[2]};m.base_color_texture=std::move(paths[0]);m.normal_texture=std::move(paths[1]);m.metallic_roughness_texture=std::move(paths[2]);m.emissive_texture=std::move(paths[3]);return RHIZO_SUCCESS;
+}
+
+RhizoResult rhizo_scene_save(RhizoContext*c,const char*path){
+ if(!c||!path||!*path)return RHIZO_ERROR_INVALID_ARGUMENT;std::string error;if(!rhizo::save_scene(c->scene,path,error)){c->last_error=std::move(error);return RHIZO_ERROR_INTERNAL;}c->last_error.clear();return RHIZO_SUCCESS;
+}
+RhizoResult rhizo_scene_load(RhizoContext*c,const char*path){
+ if(!c||!path||!*path)return RHIZO_ERROR_INVALID_ARGUMENT;rhizo::Scene loaded;std::string error;if(!rhizo::load_scene(loaded,path,error)){c->last_error=std::move(error);return RHIZO_ERROR_INTERNAL;}
+ c->scene=std::move(loaded);c->animation=rhizo::Animation{};c->animation_player.bind(nullptr);c->animation_clips.clear();c->animation_state_machine=rhizo::AnimationStateMachine{};c->camera_shake_origins.clear();c->selected_entity=0;c->last_error.clear();return RHIZO_SUCCESS;
+}
+RhizoResult rhizo_prefab_save(RhizoContext*c,uint32_t root,const char*path){
+ if(!c||!path||!*path||!root)return RHIZO_ERROR_INVALID_ARGUMENT;std::string error;if(!rhizo::save_prefab(c->scene,root,path,error)){c->last_error=std::move(error);return RHIZO_ERROR_INTERNAL;}c->last_error.clear();return RHIZO_SUCCESS;
+}
+RhizoResult rhizo_prefab_instantiate(RhizoContext*c,const char*path,uint32_t parent,uint32_t*out_root){
+ if(!c||!path||!*path||!out_root)return RHIZO_ERROR_INVALID_ARGUMENT;*out_root=0;std::string error;if(!rhizo::instantiate_prefab(c->scene,path,parent,*out_root,error)){c->last_error=std::move(error);return RHIZO_ERROR_INTERNAL;}c->last_error.clear();return RHIZO_SUCCESS;
+}
+RhizoResult rhizo_assets_scan(RhizoContext*c,const char*root){
+ if(!c||!root||!*root)return RHIZO_ERROR_INVALID_ARGUMENT;std::string error;if(!c->assets.scan(root,error)){c->last_error=std::move(error);return RHIZO_ERROR_INTERNAL;}c->last_error.clear();return RHIZO_SUCCESS;
+}
+uint32_t rhizo_assets_get_count(const RhizoContext*c){return c?static_cast<uint32_t>(c->assets.assets().size()):0;}
+RhizoResult rhizo_assets_get(const RhizoContext*c,uint32_t index,RhizoAssetInfo*out){
+ if(!c||!out||out->struct_size<sizeof(RhizoAssetInfo)||index>=c->assets.assets().size())return RHIZO_ERROR_INVALID_ARGUMENT;const auto&a=c->assets.assets()[index];out->type=static_cast<uint32_t>(a.type);out->id=a.id;out->size=a.size;out->modified=a.modified;std::strncpy(out->path,a.path.c_str(),sizeof(out->path)-1);out->path[sizeof(out->path)-1]='\0';return RHIZO_SUCCESS;
+}
+void rhizo_resources_collect(RhizoContext*c){if(c)c->resources.collect_unused();}
+void rhizo_resources_clear(RhizoContext*c){if(c)c->resources.clear();}
+RhizoResult rhizo_resources_get_stats(const RhizoContext*c,RhizoResourceStats*out){
+ if(!c||!out||out->struct_size<sizeof(RhizoResourceStats))return RHIZO_ERROR_INVALID_ARGUMENT;out->texture_cache_entries=static_cast<uint32_t>(c->resources.texture_cache_size());out->model_cache_entries=static_cast<uint32_t>(c->resources.model_cache_size());out->asset_count=static_cast<uint32_t>(c->assets.assets().size());return RHIZO_SUCCESS;
+}
+
+RhizoResult rhizo_texture_load(RhizoContext*c,const char*path,RhizoTexture**out){
+ if(!c||!path||!*path||!out)return RHIZO_ERROR_INVALID_ARGUMENT;*out=nullptr;std::string error;auto resource=c->resources.load_texture(path,error);if(!resource){c->last_error=std::move(error);return RHIZO_ERROR_INTERNAL;}
+ auto handle=new(std::nothrow) RhizoTexture();if(!handle)return RHIZO_ERROR_OUT_OF_MEMORY;handle->resource=std::move(resource);*out=handle;c->last_error.clear();return RHIZO_SUCCESS;
+}
+RhizoResult rhizo_texture_get_info(const RhizoTexture*t,uint32_t*w,uint32_t*h,uint64_t*bytes){
+ if(!t||!t->resource||!w||!h||!bytes)return RHIZO_ERROR_INVALID_ARGUMENT;*w=t->resource->width;*h=t->resource->height;*bytes=static_cast<uint64_t>(t->resource->rgba.size());return RHIZO_SUCCESS;
+}
+RhizoResult rhizo_texture_copy_pixels(const RhizoTexture*t,void*dst,uint64_t capacity){
+ if(!t||!t->resource||!dst||capacity<t->resource->rgba.size())return RHIZO_ERROR_INVALID_ARGUMENT;std::memcpy(dst,t->resource->rgba.data(),t->resource->rgba.size());return RHIZO_SUCCESS;
+}
+void rhizo_texture_release(RhizoTexture*t){delete t;}
+
+RhizoResult rhizo_scene_component_set(RhizoContext*c,uint32_t entity,uint32_t type,const void*data,uint32_t size){
+ if(!c||!c->scene.get(entity)||type==0||size>(1u<<20)||(size&&data==nullptr))return RHIZO_ERROR_INVALID_ARGUMENT;
+ try{auto*set=c->scene.components.get<rhizo::CustomComponentSet>(entity);if(!set)set=&c->scene.components.emplace<rhizo::CustomComponentSet>(entity);auto&payload=set->values[type];payload.resize(size);if(size)std::memcpy(payload.data(),data,size);return RHIZO_SUCCESS;}catch(const std::bad_alloc&){return RHIZO_ERROR_OUT_OF_MEMORY;}
+}
+RhizoResult rhizo_scene_component_get(const RhizoContext*c,uint32_t entity,uint32_t type,void*data,uint32_t capacity,uint32_t*out_size){
+ if(!c||!out_size||type==0)return RHIZO_ERROR_INVALID_ARGUMENT;const auto*set=c->scene.components.get<rhizo::CustomComponentSet>(entity);if(!set)return RHIZO_ERROR_INVALID_ARGUMENT;auto i=set->values.find(type);if(i==set->values.end())return RHIZO_ERROR_INVALID_ARGUMENT;
+ *out_size=static_cast<uint32_t>(i->second.size());if(!data&&capacity==0)return RHIZO_SUCCESS;if(capacity<i->second.size()||(!data&&!i->second.empty()))return RHIZO_ERROR_INVALID_ARGUMENT;if(!i->second.empty())std::memcpy(data,i->second.data(),i->second.size());return RHIZO_SUCCESS;
+}
+RhizoResult rhizo_scene_component_remove(RhizoContext*c,uint32_t entity,uint32_t type){
+ if(!c||type==0)return RHIZO_ERROR_INVALID_ARGUMENT;auto*set=c->scene.components.get<rhizo::CustomComponentSet>(entity);if(!set||set->values.erase(type)==0)return RHIZO_ERROR_INVALID_ARGUMENT;if(set->values.empty())c->scene.components.remove<rhizo::CustomComponentSet>(entity);return RHIZO_SUCCESS;
+}
+uint8_t rhizo_scene_component_has(const RhizoContext*c,uint32_t entity,uint32_t type){
+ if(!c||type==0)return 0;const auto*set=c->scene.components.get<rhizo::CustomComponentSet>(entity);return set&&set->values.contains(type)?1u:0u;
 }
 }  // extern "C"

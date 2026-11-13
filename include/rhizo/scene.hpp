@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include "rhizo/components.hpp"
 
 namespace rhizo {
 using EntityId=uint32_t;
@@ -25,6 +26,7 @@ struct Mesh {
   std::vector<uint32_t> indices;
   uint32_t material_index=0;
 };
+struct CustomComponentSet { std::unordered_map<uint32_t,std::vector<uint8_t>> values; };
 struct SceneNode {
   EntityId id=kInvalidEntity,parent=kInvalidEntity;
   std::string name;
@@ -45,6 +47,8 @@ class Scene {
   bool set_parent(EntityId id,EntityId parent);
   Mat4 world_matrix(EntityId id) const;
   std::vector<EntityId> roots() const;
+  void clear();
+  ComponentRegistry components;
   std::vector<SceneNode>& nodes(){return nodes_;}
   const std::vector<SceneNode>& nodes()const{return nodes_;}
   std::vector<Mesh> meshes;
