@@ -42,7 +42,7 @@ bool write_scene(const Scene&s,const std::string&p,const std::vector<EntityId>&i
   const auto&l=n->light;if(!w.pod(uint32_t(l.type))||!write_vec3(w,l.color)||!w.pod(l.intensity)||!w.pod(l.range)||!w.pod(l.inner_cone)||!w.pod(l.outer_cone)||!w.pod(uint8_t(l.casts_shadows)))return false;
   const auto*custom=s.components.get<CustomComponentSet>(id);const uint32_t count=custom?static_cast<uint32_t>(custom->values.size()):0;if(count>kMaxComponents||!w.pod(count))return false;
   if(custom){std::vector<uint32_t>types;types.reserve(custom->values.size());for(const auto&entry:custom->values)types.push_back(entry.first);std::sort(types.begin(),types.end());for(uint32_t typeId:types){const auto&data=custom->values.at(typeId);if(typeId==0||data.size()>kMaxComponentBytes||!w.pod(typeId)||!w.pod(uint32_t(data.size())))return false;if(!data.empty())w.f.write(reinterpret_cast<const char*>(data.data()),static_cast<std::streamsize>(data.size()));if(!w.f)return false;}}
-  if(n->morph_weights.size()>256||!w.pod(uint32_t(n->morph_weights.size())))return false;for(float weight:n->morph_weights)if(!std::isfinite(weight)||!w.pod(weight))return false;
+  if(n->morph_weights.size()>256||!w.pod(uint32_t(n->morph_weights.size())))return false;for(float weight:n->morph_weights)if(!std::isfinite(weight)||weight<-1.0f||weight>1.0f||!w.pod(weight))return false;
  }
  return bool(w.f);
 }
