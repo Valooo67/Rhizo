@@ -16,6 +16,13 @@ echo "ANDROID_HOME=${ANDROID_HOME:-unset}"
 test -d "${ANDROID_HOME}/ndk/28.2.13676358"
 echo "NDK 28.2.13676358: present"
 echo
+echo "===== CHECKED OUT REVISION ====="
+git rev-parse HEAD
+git status --short
+nproc
+free -h
+df -h .
+echo
 echo "===== SOURCE TREE ====="
 find include src -maxdepth 4 -type f -print | sort
 echo
@@ -28,7 +35,7 @@ cmake -S . -B build-android \
   -G Ninja
 echo
 echo "===== BUILD librhizo.so ====="
-cmake --build build-android --parallel 2
+cmake --build build-android --parallel 2 --verbose
 echo
 echo "===== ABI / EXPORTED API CHECK ====="
 readelf -h build-android/librhizo.so | grep -E 'Class:|Machine:'
