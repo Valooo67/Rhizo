@@ -35,7 +35,7 @@ class Animation {
 enum class PlaybackMode:uint32_t { Once=0,Loop=1,PingPong=2 };
 class AnimationPlayer {
  public:
-  void bind(const Animation* animation){animation_=animation;time_=0;direction_=1;playing_=false;}
+  void bind(const Animation* animation){if(animation_!=animation){animation_=animation;time_=0;direction_=1;playing_=false;}}
   void play(bool restart=false){if(restart)time_=0;direction_=1;playing_=animation_!=nullptr;}
   void pause(){playing_=false;}
   void stop(){playing_=false;time_=0;direction_=1;}
