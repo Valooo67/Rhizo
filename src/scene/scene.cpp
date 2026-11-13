@@ -18,8 +18,8 @@ bool Scene::set_parent(EntityId id,EntityId parent){
 }
 bool Scene::destroy(EntityId id){
   auto*n=get(id);if(!n)return false;
-  const auto children=n->children;for(EntityId c:children)destroy(c);
-  if(n->parent!=kInvalidEntity)if(auto*p=get(n->parent)){auto&v=p->children;v.erase(std::remove(v.begin(),v.end(),id),v.end());}
+  const EntityId parent=n->parent;const auto children=n->children;for(EntityId c:children)destroy(c);
+  if(parent!=kInvalidEntity)if(auto*p=get(parent)){auto&v=p->children;v.erase(std::remove(v.begin(),v.end(),id),v.end());}
   components.remove_entity(id);
   nodes_.erase(std::remove_if(nodes_.begin(),nodes_.end(),[id](const SceneNode&x){return x.id==id;}),nodes_.end());return true;
 }
