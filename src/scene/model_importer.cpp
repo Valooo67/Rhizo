@@ -131,10 +131,10 @@ bool import_model(Scene&scene,const std::string&path,const std::string&cache,Imp
    if(src->HasTangentsAndBitangents()){const auto t=src->mTangents[v];x.tangent={t.x,t.y,t.z,1};}
    mesh.vertices.push_back(x);
   }
-  mesh.bones.reserve(src->mNumBones);
+  if(src->mNumBones>256){error="Mesh exceeds RHIZO's 256-bone skinning limit";return false;}mesh.bones.reserve(src->mNumBones);
   for(unsigned bi=0;bi<src->mNumBones;bi++){
    const aiBone*b=src->mBones[bi];MeshBone bone;bone.name=b->mName.C_Str();bone.inverse_bind=mat4(b->mOffsetMatrix);mesh.bones.push_back(std::move(bone));++report.bones;
-   for(unsigned wi=0;wi<b->mNumWeights;wi++){const aiVertexWeight&w=b->mWeights[wi];if(w.mVertexId>=mesh.vertices.size()||!std::isfinite(w.mWeight)||w.mWeight<=0)continue;Vertex&v=mesh.vertices[w.mVertexId];uint32_t slot=4;float smallest=w.mWeight;for(uint32_t k=0;k<4;k++){const float current=(&v.bone_weights.x)[k];if(current<smallest){smallest=current;slot=k;}}if(slot<4){v.bone_indices[slot]=bi;(&v.bone_weights.x)[slot]=w.mWeight;}}
+   for(unsigned wi=0;wi<b->mNumWeights;wi++){const aiVertexWeight&w=b->mWeights[wi];if(w.mVertexId>=mesh.vertices.size()||!std::isfinite(w.mWeight)||w.mWeight<=0)continue;Vertex&v=mesh.vertices[w.mVertexId];float weights[4]={v.bone_weights.x,v.bone_weights.y,v.bone_weights.z,v.bone_weights.w};uint32_t indices[4]={v.bone_indices[0],v.bone_indices[1],v.bone_indices[2],v.bone_indices[3]};uint32_t slot=0;for(uint32_t k=1;k<4;k++)if(weights[k]<weights[slot])slot=k;if(w.mWeight>weights[slot]){weights[slot]=w.mWeight;indices[slot]=bi;v.bone_weights={weights[0],weights[1],weights[2],weights[3]};for(uint32_t k=0;k<4;k++)v.bone_indices[k]=indices[k];}}
   }
   for(auto&v:mesh.vertices){const float total=v.bone_weights.x+v.bone_weights.y+v.bone_weights.z+v.bone_weights.w;if(total>1.0e-8f){v.bone_weights.x/=total;v.bone_weights.y/=total;v.bone_weights.z/=total;v.bone_weights.w/=total;}}
   mesh.morph_targets.reserve(src->mNumAnimMeshes);
