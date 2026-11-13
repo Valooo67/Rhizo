@@ -19,7 +19,7 @@ struct Material {
   Vec3 emissive_color{0,0,0};
   std::string base_color_texture, normal_texture, metallic_roughness_texture, emissive_texture;
 };
-struct Vertex { Vec3 position,normal; Vec2 uv; Vec4 tangent{1,0,0,1}; };
+struct Vertex { Vec3 position,normal; Vec2 uv; Vec4 tangent{1,0,0,1}; uint32_t bone_indices[4]{}; Vec4 bone_weights{}; };\nstruct MeshBone { std::string name; EntityId node=kInvalidEntity; Mat4 inverse_bind=Mat4::identity(); };\nstruct MorphTarget { std::string name; std::vector<Vec3> position_deltas,normal_deltas; };
 struct Mesh {
   std::string name;
   std::vector<Vertex> vertices;
