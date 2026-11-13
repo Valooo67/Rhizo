@@ -537,4 +537,30 @@ RhizoResult rhizo_scene_set_material_info(RhizoContext*c,uint32_t i,const RhizoM
  std::string paths[4];if(!read(in->base_color_texture,sizeof(in->base_color_texture),paths[0])||!read(in->normal_texture,sizeof(in->normal_texture),paths[1])||!read(in->metallic_roughness_texture,sizeof(in->metallic_roughness_texture),paths[2])||!read(in->emissive_texture,sizeof(in->emissive_texture),paths[3]))return RHIZO_ERROR_INVALID_ARGUMENT;
  auto&m=c->scene.materials[i];m.base_color={in->base_color[0],in->base_color[1],in->base_color[2],in->base_color[3]};m.metallic=in->metallic;m.roughness=in->roughness;m.normal_scale=normalScale;m.occlusion=occlusion;m.emissive_color={emissive[0],emissive[1],emissive[2]};m.base_color_texture=std::move(paths[0]);m.normal_texture=std::move(paths[1]);m.metallic_roughness_texture=std::move(paths[2]);m.emissive_texture=std::move(paths[3]);return RHIZO_SUCCESS;
 }
+
+RhizoResult rhizo_scene_save(RhizoContext*c,const char*path){
+ if(!c||!path||!*path)return RHIZO_ERROR_INVALID_ARGUMENT;std::string error;if(!rhizo::save_scene(c->scene,path,error)){c->last_error=std::move(error);return RHIZO_ERROR_INTERNAL;}c->last_error.clear();return RHIZO_SUCCESS;
+}
+RhizoResult rhizo_scene_load(RhizoContext*c,const char*path){
+ if(!c||!path||!*path)return RHIZO_ERROR_INVALID_ARGUMENT;rhizo::Scene loaded;std::string error;if(!rhizo::load_scene(loaded,path,error)){c->last_error=std::move(error);return RHIZO_ERROR_INTERNAL;}
+ c->scene=std::move(loaded);c->animation=rhizo::Animation{};c->animation_player.bind(nullptr);c->animation_clips.clear();c->animation_state_machine=rhizo::AnimationStateMachine{};c->camera_shake_origins.clear();c->selected_entity=0;c->last_error.clear();return RHIZO_SUCCESS;
+}
+RhizoResult rhizo_prefab_save(RhizoContext*c,uint32_t root,const char*path){
+ if(!c||!path||!*path||!root)return RHIZO_ERROR_INVALID_ARGUMENT;std::string error;if(!rhizo::save_prefab(c->scene,root,path,error)){c->last_error=std::move(error);return RHIZO_ERROR_INTERNAL;}c->last_error.clear();return RHIZO_SUCCESS;
+}
+RhizoResult rhizo_prefab_instantiate(RhizoContext*c,const char*path,uint32_t parent,uint32_t*out_root){
+ if(!c||!path||!*path||!out_root)return RHIZO_ERROR_INVALID_ARGUMENT;*out_root=0;std::string error;if(!rhizo::instantiate_prefab(c->scene,path,parent,*out_root,error)){c->last_error=std::move(error);return RHIZO_ERROR_INTERNAL;}c->last_error.clear();return RHIZO_SUCCESS;
+}
+RhizoResult rhizo_assets_scan(RhizoContext*c,const char*root){
+ if(!c||!root||!*root)return RHIZO_ERROR_INVALID_ARGUMENT;std::string error;if(!c->assets.scan(root,error)){c->last_error=std::move(error);return RHIZO_ERROR_INTERNAL;}c->last_error.clear();return RHIZO_SUCCESS;
+}
+uint32_t rhizo_assets_get_count(const RhizoContext*c){return c?static_cast<uint32_t>(c->assets.assets().size()):0;}
+RhizoResult rhizo_assets_get(const RhizoContext*c,uint32_t index,RhizoAssetInfo*out){
+ if(!c||!out||out->struct_size<sizeof(RhizoAssetInfo)||index>=c->assets.assets().size())return RHIZO_ERROR_INVALID_ARGUMENT;const auto&a=c->assets.assets()[index];out->type=static_cast<uint32_t>(a.type);out->id=a.id;out->size=a.size;out->modified=a.modified;std::strncpy(out->path,a.path.c_str(),sizeof(out->path)-1);out->path[sizeof(out->path)-1]='\\0';return RHIZO_SUCCESS;
+}
+void rhizo_resources_collect(RhizoContext*c){if(c)c->resources.collect_unused();}
+void rhizo_resources_clear(RhizoContext*c){if(c)c->resources.clear();}
+RhizoResult rhizo_resources_get_stats(const RhizoContext*c,RhizoResourceStats*out){
+ if(!c||!out||out->struct_size<sizeof(RhizoResourceStats))return RHIZO_ERROR_INVALID_ARGUMENT;out->texture_cache_entries=static_cast<uint32_t>(c->resources.texture_cache_size());out->model_cache_entries=static_cast<uint32_t>(c->resources.model_cache_size());out->asset_count=static_cast<uint32_t>(c->assets.assets().size());return RHIZO_SUCCESS;
+}
 }  // extern "C"
