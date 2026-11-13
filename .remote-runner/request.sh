@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-echo "===== RHIZO ANIMATION RUNTIME + TIMELINE RELEASE CANDIDATE ====="
+echo "===== RHIZO ANIMATION STAGE 3 FINAL BUILD CANDIDATE ====="\necho "===== RHIZO ANIMATION RUNTIME + TIMELINE RELEASE CANDIDATE ====="
 echo "===== RHIZO REMOTE BUILD + COMPLETE C ABI VALIDATION ====="
 echo "UTC: $(date -u +%FT%TZ)"
 echo "Host: $(uname -a)"
