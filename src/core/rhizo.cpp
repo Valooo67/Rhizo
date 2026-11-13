@@ -36,6 +36,8 @@ struct RhizoContext {
   rhizo::Animation animation;
   rhizo::AnimationPlayer animation_player;
   std::map<uint32_t,rhizo::Animation> animation_clips;
+  std::map<uint32_t,std::string> animation_clip_names;
+  uint32_t next_animation_clip_id=1;
   rhizo::AnimationStateMachine animation_state_machine;
   std::unordered_map<uint32_t,rhizo::Vec3> camera_shake_origins;
   uint32_t selected_entity=0,gizmo_mode=RHIZO_GIZMO_TRANSLATE;
@@ -397,7 +399,9 @@ RhizoResult rhizo_scene_import_model(RhizoContext*c,const char*path,const char*c
   for(const auto&m:source.materials)c->scene.materials.push_back(m);
   for(auto m:source.meshes){if(m.material_index<source.materials.size())m.material_index+=materialBase;c->scene.meshes.push_back(std::move(m));}
   std::unordered_map<uint32_t,uint32_t> ids;for(const auto&n:source.nodes()){uint32_t id=c->scene.create(n.name);if(!id){c->last_error="Failed to instantiate cached model scene";return RHIZO_ERROR_INTERNAL;}ids[n.id]=id;}
-  for(const auto&n:source.nodes()){auto*dst=c->scene.get(ids[n.id]);dst->local=n.local;dst->visible=n.visible;dst->has_camera=n.has_camera;dst->camera=n.camera;dst->has_light=n.has_light;dst->light=n.light;for(uint32_t m:n.mesh_indices)dst->mesh_indices.push_back(meshBase+m);if(n.parent&&!c->scene.set_parent(dst->id,ids[n.parent])){c->last_error="Cached model hierarchy is invalid";return RHIZO_ERROR_INTERNAL;}}
+  for(const auto&n:source.nodes()){auto*dst=c->scene.get(ids[n.id]);dst->local=n.local;dst->visible=n.visible;dst->has_camera=n.has_camera;dst->camera=n.camera;dst->has_light=n.has_light;dst->light=n.light;dst->morph_weights=n.morph_weights;for(uint32_t m:n.mesh_indices)dst->mesh_indices.push_back(meshBase+m);if(n.parent&&!c->scene.set_parent(dst->id,ids[n.parent])){c->last_error="Cached model hierarchy is invalid";return RHIZO_ERROR_INTERNAL;}}
+  for(size_t mi=0;mi<source.meshes.size();mi++)for(auto&bone:c->scene.meshes[meshBase+mi].bones){auto mapped=ids.find(bone.node);bone.node=mapped==ids.end()?0:mapped->second;}
+  for(const auto&clip:resource->animations){rhizo::Animation remapped;if(!rhizo::retarget_animation(clip.animation,ids,remapped))continue;while(c->animation_clips.contains(c->next_animation_clip_id))++c->next_animation_clip_id;const uint32_t clipId=c->next_animation_clip_id++;c->animation_clips.emplace(clipId,std::move(remapped));c->animation_clip_names[clipId]=clip.name;}
   out->node_count=static_cast<uint32_t>(source.nodes().size());out->mesh_count=static_cast<uint32_t>(source.meshes.size());out->material_count=static_cast<uint32_t>(source.materials.size());
   std::memset(out->resolved_model_path,0,sizeof(out->resolved_model_path));std::strncpy(out->resolved_model_path,resource->source.c_str(),sizeof(out->resolved_model_path)-1);c->last_error.clear();return RHIZO_SUCCESS;
 }
@@ -501,7 +505,7 @@ uint32_t rhizo_animation_get_key_count(const RhizoContext*c){return c?static_cas
 
 
 RhizoResult rhizo_animation_clip_create(RhizoContext*c,uint32_t clip){
- if(!c||clip==0||c->animation_clips.contains(clip))return RHIZO_ERROR_INVALID_ARGUMENT;try{c->animation_clips.emplace(clip,rhizo::Animation{});return RHIZO_SUCCESS;}catch(...){return RHIZO_ERROR_OUT_OF_MEMORY;}
+ if(!c||clip==0||c->animation_clips.contains(clip))return RHIZO_ERROR_INVALID_ARGUMENT;try{c->animation_clips.emplace(clip,rhizo::Animation{});c->animation_clip_names[clip]=std::string("Clip_")+std::to_string(clip);c->next_animation_clip_id=std::max(c->next_animation_clip_id,clip+1u);return RHIZO_SUCCESS;}catch(...){return RHIZO_ERROR_OUT_OF_MEMORY;}
 }
 RhizoResult rhizo_animation_clip_set_keyframe(RhizoContext*c,uint32_t clip,uint32_t id,uint32_t property,double time,const RhizoTransform*t){
  if(!c||!t||property>2)return RHIZO_ERROR_INVALID_ARGUMENT;auto it=c->animation_clips.find(clip);if(it==c->animation_clips.end())return RHIZO_ERROR_INVALID_ARGUMENT;rhizo::Transform v;v.position={t->position[0],t->position[1],t->position[2]};v.rotation={t->rotation_xyzw[3],t->rotation_xyzw[0],t->rotation_xyzw[1],t->rotation_xyzw[2]};v.scale={t->scale[0],t->scale[1],t->scale[2]};return it->second.set_key(id,static_cast<rhizo::TrackProperty>(property),time,v)?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;
