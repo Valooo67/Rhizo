@@ -38,6 +38,12 @@ echo
 echo "===== BUILD librhizo.so ====="
 cmake --build build-android --parallel 2 --verbose
 echo
+echo "===== SPIR-V VALIDATION ====="
+for shader in build-android/shaders/*.spv; do
+  spirv-val --target-env vulkan1.1 "$shader"
+  echo "validated: $(basename "$shader")"
+done
+echo
 echo "===== ABI / EXPORTED API CHECK ====="
 readelf -h build-android/librhizo.so | grep -E 'Class:|Machine:'
 for symbol in rhizo_get_abi_version rhizo_create rhizo_get_device_info rhizo_viewport_attach rhizo_viewport_render rhizo_viewport_detach rhizo_get_last_error rhizo_buffer_create rhizo_buffer_write rhizo_buffer_get_size rhizo_buffer_destroy rhizo_destroy rhizo_scene_create_node rhizo_scene_destroy_node rhizo_scene_set_parent rhizo_scene_set_transform rhizo_scene_get_transform rhizo_scene_get_node_count rhizo_scene_get_node rhizo_scene_set_keyframe rhizo_scene_evaluate_animation rhizo_scene_import_model rhizo_scene_get_mesh_count rhizo_scene_get_mesh_info rhizo_scene_get_material_count rhizo_scene_get_material_info rhizo_shadow_map_create rhizo_shadow_map_destroy rhizo_editor_grid_vertex_count rhizo_editor_grid_vertices rhizo_editor_gizmo_vertex_count rhizo_editor_gizmo_vertices rhizo_scene_set_camera rhizo_scene_get_camera rhizo_scene_set_light rhizo_scene_get_light rhizo_scene_set_parameter_keyframe; do
