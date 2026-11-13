@@ -14,7 +14,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstring>
-#include <memory>
+#include <memory>\n#include <map>
 #include <new>
 #include <string>
 #include <unordered_map>
@@ -29,7 +29,7 @@ struct RhizoContext {
   std::vector<RhizoBuffer*> buffers;
   rhizo::Scene scene;
   rhizo::Animation animation;
-  rhizo::AnimationPlayer animation_player;
+  rhizo::AnimationPlayer animation_player;\n  std::map<uint32_t,rhizo::Animation> animation_clips;\n  rhizo::AnimationStateMachine animation_state_machine;
   std::unordered_map<uint32_t,rhizo::Vec3> camera_shake_origins;
   uint32_t selected_entity=0,gizmo_mode=RHIZO_GIZMO_TRANSLATE;
   std::unique_ptr<rhizo::ShadowMap> shadow_map;
@@ -485,7 +485,29 @@ double rhizo_animation_get_time(const RhizoContext*c){return c?c->animation_play
 uint32_t rhizo_animation_get_key_count(const RhizoContext*c){return c?static_cast<uint32_t>(c->animation.key_count()):0;}
 
 
-RhizoResult rhizo_scene_look_at(RhizoContext*c,uint32_t entity,uint32_t target,float weight){
+
+RhizoResult rhizo_animation_clip_create(RhizoContext*c,uint32_t clip){
+ if(!c||clip==0||c->animation_clips.contains(clip))return RHIZO_ERROR_INVALID_ARGUMENT;try{c->animation_clips.emplace(clip,rhizo::Animation{});return RHIZO_SUCCESS;}catch(...){return RHIZO_ERROR_OUT_OF_MEMORY;}
+}
+RhizoResult rhizo_animation_clip_set_keyframe(RhizoContext*c,uint32_t clip,uint32_t id,uint32_t property,double time,const RhizoTransform*t){
+ if(!c||!t||property>2)return RHIZO_ERROR_INVALID_ARGUMENT;auto it=c->animation_clips.find(clip);if(it==c->animation_clips.end())return RHIZO_ERROR_INVALID_ARGUMENT;rhizo::Transform v;v.position={t->position[0],t->position[1],t->position[2]};v.rotation={t->rotation_xyzw[3],t->rotation_xyzw[0],t->rotation_xyzw[1],t->rotation_xyzw[2]};v.scale={t->scale[0],t->scale[1],t->scale[2]};return it->second.set_key(id,static_cast<rhizo::TrackProperty>(property),time,v)?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;
+}
+RhizoResult rhizo_animation_clip_set_parameter_keyframe(RhizoContext*c,uint32_t clip,uint32_t id,uint32_t property,double time,const float value[4]){
+ if(!c||!value)return RHIZO_ERROR_INVALID_ARGUMENT;auto it=c->animation_clips.find(clip);if(it==c->animation_clips.end())return RHIZO_ERROR_INVALID_ARGUMENT;return it->second.set_parameter_key(id,property,time,{value[0],value[1],value[2],value[3]})?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;
+}
+RhizoResult rhizo_animation_state_add(RhizoContext*c,uint32_t state,uint32_t clip,double speed){
+ if(!c||state==0||!std::isfinite(speed)||speed==0)return RHIZO_ERROR_INVALID_ARGUMENT;auto it=c->animation_clips.find(clip);if(it==c->animation_clips.end())return RHIZO_ERROR_INVALID_ARGUMENT;return c->animation_state_machine.add_state(std::to_string(state),&it->second,speed)?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;
+}
+RhizoResult rhizo_animation_state_transition(RhizoContext*c,uint32_t from,uint32_t to,double duration){
+ if(!c||from==0||to==0)return RHIZO_ERROR_INVALID_ARGUMENT;return c->animation_state_machine.set_transition(std::to_string(from),std::to_string(to),duration)?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;
+}
+RhizoResult rhizo_animation_state_play(RhizoContext*c,uint32_t state,uint8_t restart){
+ if(!c||state==0)return RHIZO_ERROR_INVALID_ARGUMENT;return c->animation_state_machine.play(std::to_string(state),restart!=0)?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;
+}
+RhizoResult rhizo_animation_state_tick(RhizoContext*c,double delta){
+ if(!c||!std::isfinite(delta)||delta<0||delta>1.0)return RHIZO_ERROR_INVALID_ARGUMENT;return c->animation_state_machine.update(c->scene,delta)?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;
+}
+\nRhizoResult rhizo_scene_look_at(RhizoContext*c,uint32_t entity,uint32_t target,float weight){
  if(!c||!std::isfinite(weight))return RHIZO_ERROR_INVALID_ARGUMENT;return rhizo::solve_look_at(c->scene,entity,target,weight)?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;
 }
 RhizoResult rhizo_scene_solve_two_bone_ik(RhizoContext*c,uint32_t root,uint32_t middle,uint32_t end,const float target[3],const float pole[3],float weight){
