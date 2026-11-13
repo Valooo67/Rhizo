@@ -84,7 +84,7 @@ bool instantiate_prefab(Scene&s,const std::string&p,EntityId parent,EntityId&roo
  for(auto m:prefab.meshes){if(m.material_index<prefab.materials.size())m.material_index+=materialBase;merged.meshes.push_back(std::move(m));}
  std::unordered_map<EntityId,EntityId>map;
  for(const auto&n:prefab.nodes()){EntityId id=merged.create(n.name);if(!id){e="Failed to create prefab entity";return false;}map[n.id]=id;}
- for(size_t mi=0;mi<prefab.meshes.size();mi++)for(auto&bone:merged.meshes[meshBase+mi].bones)if(bone.node){auto mapped=map.find(bone.node);if(mapped==map.end()){e="Prefab skin bone is outside the prefab hierarchy";return false;}bone.node=mapped->second;}
+ for(size_t mi=0;mi<prefab.meshes.size();mi++)for(auto&bone:merged.meshes[meshBase+mi].bones)if(bone.node){auto mapped=map.find(bone.node);bone.node=mapped==map.end()?0:mapped->second;}
  EntityId newRoot=0;
  for(const auto&n:prefab.nodes()){
   auto*dst=merged.get(map[n.id]);if(!dst){e="Prefab entity mapping is invalid";return false;}
