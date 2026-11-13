@@ -17,6 +17,7 @@
 #include <cstddef>
 #include <cstring>
 #include <memory>
+#include <iterator>
 #include <map>
 #include <new>
 #include <string>
