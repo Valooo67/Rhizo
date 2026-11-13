@@ -18,8 +18,9 @@ add_custom_command(OUTPUT ${RHIZO_SHADER_HEADER}
  COMMAND ${CMAKE_COMMAND} -E make_directory ${RHIZO_SHADER_DIR}
  COMMAND ${GLSLC} -O ${CMAKE_CURRENT_SOURCE_DIR}/shaders/pbr.vert -o ${RHIZO_SHADER_DIR}/pbr.vert.spv
  COMMAND ${GLSLC} -O ${CMAKE_CURRENT_SOURCE_DIR}/shaders/pbr.frag -o ${RHIZO_SHADER_DIR}/pbr.frag.spv
- COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/embed_spirv.py ${RHIZO_SHADER_HEADER} ${RHIZO_SHADER_DIR}/pbr.vert.spv ${RHIZO_SHADER_DIR}/pbr.frag.spv
- DEPENDS shaders/pbr.vert shaders/pbr.frag tools/embed_spirv.py VERBATIM)
+ COMMAND ${GLSLC} -O ${CMAKE_CURRENT_SOURCE_DIR}/shaders/shadow.vert -o ${RHIZO_SHADER_DIR}/shadow.vert.spv
+ COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/embed_spirv.py ${RHIZO_SHADER_HEADER} ${RHIZO_SHADER_DIR}/pbr.vert.spv ${RHIZO_SHADER_DIR}/pbr.frag.spv ${RHIZO_SHADER_DIR}/shadow.vert.spv
+ DEPENDS shaders/pbr.vert shaders/pbr.frag shaders/shadow.vert tools/embed_spirv.py VERBATIM)
 add_custom_target(rhizo_shaders DEPENDS ${RHIZO_SHADER_HEADER})
 set(ASSIMP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(ASSIMP_BUILD_ASSIMP_TOOLS OFF CACHE BOOL "" FORCE)

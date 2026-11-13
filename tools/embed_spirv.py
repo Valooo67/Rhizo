@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import pathlib, struct, sys
 out=pathlib.Path(sys.argv[1]); lines=["#pragma once","#include <cstdint>","namespace rhizo::shaders {"]
-for name,path in (("vertex",pathlib.Path(sys.argv[2])),("fragment",pathlib.Path(sys.argv[3]))):
+for name,path in (("vertex",pathlib.Path(sys.argv[2])),("fragment",pathlib.Path(sys.argv[3])),("shadow_vertex",pathlib.Path(sys.argv[4]))):
  data=path.read_bytes()
  if len(data)%4: raise SystemExit(f"invalid SPIR-V: {path}")
  words=struct.unpack("<"+"I"*(len(data)//4),data)
