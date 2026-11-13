@@ -22,6 +22,7 @@ echo "===== CHECKED OUT REVISION ====="
 git rev-parse HEAD
 git status --short
 echo "Stage 3 final source revision: $(git rev-parse HEAD)"
+echo "GPU skinning + morph palette declaration included"
 nproc
 free -h
 df -h .
