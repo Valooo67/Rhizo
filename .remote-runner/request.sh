@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-echo "===== RHIZO HDR / INSTANCING RENDERER BUILD ====="
+echo "===== RHIZO HDR OFFSCREEN + GPU INSTANCING BUILD ====="
 echo "===== RHIZO REMOTE BUILD + COMPLETE C ABI VALIDATION ====="
 echo "UTC: $(date -u +%FT%TZ)"
 echo "Host: $(uname -a)"
