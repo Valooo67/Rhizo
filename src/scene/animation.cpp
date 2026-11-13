@@ -72,7 +72,7 @@ bool AnimationStateMachine::play(const std::string&state,bool restart){
 bool AnimationStateMachine::update(Scene&scene,double delta){
  if(!std::isfinite(delta)||delta<0)return false;
  if(!blending_)return player_.tick(scene,delta);
- Scene from=scene,to=scene;outgoing_player_.tick(from,delta);player_.tick(to,delta);
+ Scene from,to;from.copy_animation_state_from(scene);to.copy_animation_state_from(scene);outgoing_player_.tick(from,delta);player_.tick(to,delta);
  transition_.elapsed=std::min(transition_.duration,transition_.elapsed+delta);const float w=static_cast<float>(transition_progress());
  auto&dst=scene.nodes();const auto&aa=from.nodes();const auto&bb=to.nodes();
  for(size_t i=0;i<dst.size()&&i<aa.size()&&i<bb.size();++i){
