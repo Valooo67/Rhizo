@@ -65,7 +65,7 @@ bool AnimationStateMachine::add_state(std::string name,const Animation*animation
 bool AnimationStateMachine::set_transition(const std::string&from,const std::string&to,double duration){if(!states_.contains(from)||!states_.contains(to)||!std::isfinite(duration)||duration<0)return false;transitions_[from+"\n"+to]=duration;return true;}
 bool AnimationStateMachine::play(const std::string&state,bool restart){
  auto it=states_.find(state);if(it==states_.end())return false;if(state==current_&&!restart)return true;
- double fade=0.0;if(!current_.empty()){auto tr=transitions_.find(current_+"\\n"+state);if(tr!=transitions_.end())fade=tr->second;}
+ double fade=0.0;if(!current_.empty()){auto tr=transitions_.find(current_+"\n"+state);if(tr!=transitions_.end())fade=tr->second;}
  if(fade>0.0&&player_.playing()){outgoing_player_=player_;blending_=true;transition_={current_,state,fade,0.0};}else{blending_=false;transition_={};}
  current_=state;player_.bind(it->second.animation);player_.set_speed(it->second.speed);player_.play(restart);return true;
 }
