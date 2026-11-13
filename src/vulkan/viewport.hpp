@@ -16,7 +16,7 @@ class Viewport final {
   ~Viewport();
   bool attach(VulkanContext&,ANativeWindow*,std::string&);
   bool render(float,float,float,float,std::string&);
-  bool render_scene(const Scene&,const Mat4&,uint32_t selected_entity,uint32_t gizmo_mode,std::string&,FrameTexture* opengl_frame=nullptr);
+  bool render_scene(const Scene&,const Mat4&,uint32_t selected_entity,uint32_t gizmo_mode,std::string&,FrameTexture* opengl_frame=nullptr,uint64_t opengl_frame_index=0);
   void detach() noexcept;
   void set_render_settings(const RhizoRenderSettings& settings) noexcept { settings_ = settings; }
   uint32_t width()const{return extent_.width;}
