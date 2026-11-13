@@ -173,6 +173,10 @@ RHIZO_API RhizoResult rhizo_assets_get(const RhizoContext*,uint32_t,RhizoAssetIn
 RHIZO_API void rhizo_resources_collect(RhizoContext*);
 RHIZO_API void rhizo_resources_clear(RhizoContext*);
 RHIZO_API RhizoResult rhizo_resources_get_stats(const RhizoContext*,RhizoResourceStats*);
+RHIZO_API RhizoResult rhizo_scene_component_set(RhizoContext*,uint32_t,uint32_t,const void*,uint32_t);
+RHIZO_API RhizoResult rhizo_scene_component_get(const RhizoContext*,uint32_t,uint32_t,void*,uint32_t,uint32_t*);
+RHIZO_API RhizoResult rhizo_scene_component_remove(RhizoContext*,uint32_t,uint32_t);
+RHIZO_API uint8_t rhizo_scene_component_has(const RhizoContext*,uint32_t,uint32_t);
 RHIZO_API RhizoResult rhizo_texture_load(RhizoContext*,const char*,RhizoTexture**);
 RHIZO_API RhizoResult rhizo_texture_get_info(const RhizoTexture*,uint32_t*,uint32_t*,uint64_t*);
 RHIZO_API RhizoResult rhizo_texture_copy_pixels(const RhizoTexture*,void*,uint64_t);
