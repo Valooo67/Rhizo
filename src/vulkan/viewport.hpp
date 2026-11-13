@@ -49,6 +49,7 @@ class Viewport final {
   struct MaterialGpuCache { std::array<std::unique_ptr<FrameTexture>,4> textures; std::array<std::string,4> paths; VkDescriptorSet descriptor=VK_NULL_HANDLE; bool initialized=false; };
   struct DrawItem { const Mesh* mesh=nullptr; Mat4 model=Mat4::identity(); uint32_t meshIndex=0; };
   std::vector<DrawItem> draw_items_;
+  std::vector<std::array<std::vector<Mat4>,3>> instance_batches_;
   VkDescriptorSetLayout material_set_layout_=VK_NULL_HANDLE;
   VkDescriptorSet frame_descriptor_set_=VK_NULL_HANDLE;
   VkDescriptorPool material_descriptor_pool_=VK_NULL_HANDLE;
