@@ -62,7 +62,8 @@ class AnimationStateMachine {
   bool play(const std::string& state,bool restart=true);
   bool update(Scene& scene,double delta_seconds);
   const std::string& current_state()const{return current_;}
-  double transition_progress()const;\n
+  double transition_progress()const;
+
  private:
   struct Transition { std::string from,to; double duration=0,elapsed=0; };
   std::unordered_map<std::string,AnimationState> states_;
@@ -70,7 +71,11 @@ class AnimationStateMachine {
   std::string current_;
   AnimationPlayer player_;
   Transition transition_;
-  double previous_time_=0;
+  AnimationPlayer outgoing_player_;
+  bool blending_=false;
 };
+
+bool solve_look_at(Scene& scene,EntityId entity,EntityId target,float weight=1.0f);
+bool solve_two_bone_ik(Scene& scene,EntityId root,EntityId middle,EntityId end,Vec3 target,Vec3 pole,float weight=1.0f);
 
 } // namespace rhizo
