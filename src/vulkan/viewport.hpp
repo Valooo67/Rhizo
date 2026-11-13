@@ -80,7 +80,9 @@ class Viewport final {
   VkSampler environment_sampler_=VK_NULL_HANDLE;
   VkRenderPass environment_render_pass_=VK_NULL_HANDLE;
   std::vector<DrawItem> all_draw_items_;
-  uint64_t environment_signature_=0;
+  uint64_t environment_signature_=0,environment_target_signature_=0;
+  uint32_t environment_capture_face_=0;
+  bool environment_capture_pending_=false;
   bool environment_valid_=false;
   uint32_t environment_resolution_=128;
   VkCommandBuffer command_=VK_NULL_HANDLE;
