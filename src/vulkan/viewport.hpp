@@ -34,6 +34,8 @@ class Viewport final {
   void destroy_swapchain() noexcept;
   struct MeshGpuCache {
     std::unique_ptr<GpuBuffer> vertices,indices;
+    std::array<std::unique_ptr<GpuBuffer>,2> lod_indices;
+    std::array<uint32_t,2> lod_index_counts{};
     const Vertex* source_vertices=nullptr;
     const uint32_t* source_indices=nullptr;
     size_t vertex_count=0,index_count=0;
