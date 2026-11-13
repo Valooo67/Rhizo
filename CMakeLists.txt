@@ -19,11 +19,13 @@ add_custom_command(OUTPUT ${RHIZO_SHADER_HEADER}
  COMMAND ${GLSLC} -O ${CMAKE_CURRENT_SOURCE_DIR}/shaders/pbr.vert -o ${RHIZO_SHADER_DIR}/pbr.vert.spv
  COMMAND ${GLSLC} -O ${CMAKE_CURRENT_SOURCE_DIR}/shaders/pbr.frag -o ${RHIZO_SHADER_DIR}/pbr.frag.spv
  COMMAND ${GLSLC} -O ${CMAKE_CURRENT_SOURCE_DIR}/shaders/pbr_instanced.vert -o ${RHIZO_SHADER_DIR}/pbr_instanced.vert.spv
+ COMMAND ${GLSLC} -O ${CMAKE_CURRENT_SOURCE_DIR}/shaders/composite.vert -o ${RHIZO_SHADER_DIR}/composite.vert.spv
+ COMMAND ${GLSLC} -O ${CMAKE_CURRENT_SOURCE_DIR}/shaders/composite.frag -o ${RHIZO_SHADER_DIR}/composite.frag.spv
  COMMAND ${GLSLC} -O ${CMAKE_CURRENT_SOURCE_DIR}/shaders/shadow.vert -o ${RHIZO_SHADER_DIR}/shadow.vert.spv
  COMMAND ${GLSLC} -O ${CMAKE_CURRENT_SOURCE_DIR}/shaders/skybox.vert -o ${RHIZO_SHADER_DIR}/skybox.vert.spv
  COMMAND ${GLSLC} -O ${CMAKE_CURRENT_SOURCE_DIR}/shaders/skybox.frag -o ${RHIZO_SHADER_DIR}/skybox.frag.spv
- COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/embed_spirv.py ${RHIZO_SHADER_HEADER} ${RHIZO_SHADER_DIR}/pbr.vert.spv ${RHIZO_SHADER_DIR}/pbr.frag.spv ${RHIZO_SHADER_DIR}/pbr_instanced.vert.spv ${RHIZO_SHADER_DIR}/shadow.vert.spv ${RHIZO_SHADER_DIR}/skybox.vert.spv ${RHIZO_SHADER_DIR}/skybox.frag.spv
- DEPENDS shaders/pbr.vert shaders/pbr.frag shaders/pbr_instanced.vert shaders/shadow.vert shaders/skybox.vert shaders/skybox.frag tools/embed_spirv.py VERBATIM)
+ COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/embed_spirv.py ${RHIZO_SHADER_HEADER} ${RHIZO_SHADER_DIR}/pbr.vert.spv ${RHIZO_SHADER_DIR}/pbr.frag.spv ${RHIZO_SHADER_DIR}/pbr_instanced.vert.spv ${RHIZO_SHADER_DIR}/composite.vert.spv ${RHIZO_SHADER_DIR}/composite.frag.spv ${RHIZO_SHADER_DIR}/shadow.vert.spv ${RHIZO_SHADER_DIR}/skybox.vert.spv ${RHIZO_SHADER_DIR}/skybox.frag.spv
+ DEPENDS shaders/pbr.vert shaders/pbr.frag shaders/pbr_instanced.vert shaders/composite.vert shaders/composite.frag shaders/shadow.vert shaders/skybox.vert shaders/skybox.frag tools/embed_spirv.py VERBATIM)
 add_custom_target(rhizo_shaders DEPENDS ${RHIZO_SHADER_HEADER})
 set(ASSIMP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(ASSIMP_BUILD_ASSIMP_TOOLS OFF CACHE BOOL "" FORCE)
