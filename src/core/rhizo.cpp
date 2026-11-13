@@ -107,6 +107,7 @@ RhizoResult rhizo_create(const RhizoCreateInfo* info, RhizoContext** out_context
 
 RhizoResult rhizo_viewport_attach(RhizoContext* context, void* native_window) {
   if (!context || !native_window) return RHIZO_ERROR_INVALID_ARGUMENT;
+  context->viewport.set_render_settings(context->render_settings);
   std::string error;
   if (!context->viewport.attach(context->vulkan, static_cast<ANativeWindow*>(native_window), error)) { context->last_error = std::move(error); return RHIZO_ERROR_VULKAN; }
   return RHIZO_SUCCESS;
