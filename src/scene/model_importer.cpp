@@ -57,7 +57,8 @@ bool extract_zip(const fs::path&zip,const fs::path&dest,std::string&error){
  return true;
 }
 Vec3 vec(aiVector3D v){return {v.x,v.y,v.z};}
-Quat quat(aiQuaternion q){return {q.x,q.y,q.z,q.w};}\nMat4 mat4(const aiMatrix4x4&m){Mat4 o;o.v={m.a1,m.b1,m.c1,m.d1,m.a2,m.b2,m.c2,m.d2,m.a3,m.b3,m.c3,m.d3,m.a4,m.b4,m.c4,m.d4};return o;}
+Quat quat(aiQuaternion q){return {q.x,q.y,q.z,q.w};}
+Mat4 mat4(const aiMatrix4x4&m){Mat4 o;o.v={m.a1,m.b1,m.c1,m.d1,m.a2,m.b2,m.c2,m.d2,m.a3,m.b3,m.c3,m.d3,m.a4,m.b4,m.c4,m.d4};return o;}
 std::string resolve_texture(const aiScene*scene,const fs::path&model_dir,const fs::path&cache,const aiString&texture){
  std::string raw=texture.C_Str();
  if(raw.empty())return {};
