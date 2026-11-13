@@ -52,7 +52,7 @@ class Scene {
   bool set_parent(EntityId id,EntityId parent);
   Mat4 world_matrix(EntityId id) const;
   std::vector<EntityId> roots() const;
-  void clear();
+  void clear();\n  void copy_animation_state_from(const Scene& source);
   ComponentRegistry components;
   std::vector<SceneNode>& nodes(){return nodes_;}
   const std::vector<SceneNode>& nodes()const{return nodes_;}
