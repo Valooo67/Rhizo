@@ -81,7 +81,7 @@ class Viewport final {
   VkDescriptorPool scene_descriptor_pool_=VK_NULL_HANDLE;
   VkDescriptorSet scene_descriptor_set_=VK_NULL_HANDLE,probe_scene_descriptor_set_=VK_NULL_HANDLE;
   std::unique_ptr<GpuBuffer> scene_uniform_,probe_scene_uniform_;
-  std::array<ShadowMap,4> shadow_maps_;
+  std::array<ShadowMap,10> shadow_maps_;
   VkImage environment_image_=VK_NULL_HANDLE,environment_depth_image_=VK_NULL_HANDLE,environment_dummy_image_=VK_NULL_HANDLE;
   VkDeviceMemory environment_memory_=VK_NULL_HANDLE,environment_depth_memory_=VK_NULL_HANDLE,environment_dummy_memory_=VK_NULL_HANDLE;
   VkImageView environment_view_=VK_NULL_HANDLE,environment_depth_view_=VK_NULL_HANDLE,environment_dummy_view_=VK_NULL_HANDLE;
