@@ -4,10 +4,10 @@ import struct
 import sys
 
 out = pathlib.Path(sys.argv[1])
-names = ("vertex", "fragment", "instanced_vertex", "shadow_vertex", "skybox_vertex", "skybox_fragment")
+names = ("vertex", "fragment", "instanced_vertex", "composite_vertex", "composite_fragment", "shadow_vertex", "skybox_vertex", "skybox_fragment")
 lines = ["#pragma once", "#include <cstdint>", "namespace rhizo::shaders {"]
 if len(sys.argv) != len(names) + 2:
-    raise SystemExit("expected output header and six SPIR-V inputs")
+    raise SystemExit("expected output header and eight SPIR-V inputs")
 for name, source in zip(names, sys.argv[2:]):
     path = pathlib.Path(source)
     data = path.read_bytes()
