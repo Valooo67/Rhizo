@@ -9,7 +9,7 @@ static bool near(float a,float b,float eps=1.0e-3f){return std::fabs(a-b)<eps;}
 
 int main(){
  const Mat4 transform=compose({2,-3,4},Quat::from_euler({0.2f,-0.4f,0.1f}),{2,3,4});const Mat4 identity=multiply(transform,inverse(transform));for(size_t i=0;i<16;i++)assert(near(identity.v[i],Mat4::identity().v[i],2.0e-3f));
- Scene scene;const EntityId a=scene.create("A"),b=scene.create("B");assert(a&&b);
+ Scene scene;Mesh heavy;heavy.vertices.resize(1000);scene.meshes.push_back(heavy);Scene snapshot;snapshot.copy_animation_state_from(scene);assert(snapshot.meshes.size()==1&&snapshot.meshes[0].vertices.empty());const EntityId a=scene.create("A"),b=scene.create("B");assert(a&&b);
  Animation step;Transform k0,k1;k0.position={0,0,0};k1.position={10,0,0};
  assert(step.set_key(a,TrackProperty::Position,0,k0));assert(step.set_key(a,TrackProperty::Position,1,k1));assert(step.set_interpolation(a,TrackProperty::Position,Interpolation::Step));
  assert(step.evaluate(scene,0.5));assert(near(scene.get(a)->local.position.x,0));assert(step.evaluate(scene,1.0));assert(near(scene.get(a)->local.position.x,10));
