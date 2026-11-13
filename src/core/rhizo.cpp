@@ -47,6 +47,8 @@ struct RhizoContext {
   std::unique_ptr<rhizo::FrameTexture> opengl_frame_texture;
 };
 
+struct RhizoTexture { std::shared_ptr<const rhizo::TextureResource> resource; };
+
 struct RhizoBuffer {
   RhizoContext* owner = nullptr;
   rhizo::GpuBuffer gpu;
@@ -389,10 +391,15 @@ RhizoResult rhizo_scene_set_keyframe(RhizoContext*c,uint32_t id,uint32_t propert
 RhizoResult rhizo_scene_evaluate_animation(RhizoContext*c,double time){return c&&c->animation.evaluate(c->scene,time)?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;}
 RhizoResult rhizo_scene_import_model(RhizoContext*c,const char*path,const char*cache,RhizoImportReport*out){
   if(!c||!path||!*path||!out||out->struct_size<sizeof(RhizoImportReport))return RHIZO_ERROR_INVALID_ARGUMENT;
-  rhizo::ImportReport report;std::string error;
-  if(!rhizo::import_model(c->scene,path,cache?cache:"",report,error)){c->last_error=std::move(error);return RHIZO_ERROR_INTERNAL;}
-  out->node_count=report.nodes;out->mesh_count=report.meshes;out->material_count=report.materials;
-  std::memset(out->resolved_model_path,0,sizeof(out->resolved_model_path));std::strncpy(out->resolved_model_path,report.model_path.c_str(),sizeof(out->resolved_model_path)-1);return RHIZO_SUCCESS;
+  std::string error;auto resource=c->resources.load_model(path,cache?cache:"",error);
+  if(!resource){c->last_error=std::move(error);return RHIZO_ERROR_INTERNAL;}
+  const rhizo::Scene&source=resource->scene;const uint32_t meshBase=static_cast<uint32_t>(c->scene.meshes.size()),materialBase=static_cast<uint32_t>(c->scene.materials.size());
+  for(const auto&m:source.materials)c->scene.materials.push_back(m);
+  for(auto m:source.meshes){if(m.material_index<source.materials.size())m.material_index+=materialBase;c->scene.meshes.push_back(std::move(m));}
+  std::unordered_map<uint32_t,uint32_t> ids;for(const auto&n:source.nodes()){uint32_t id=c->scene.create(n.name);if(!id){c->last_error="Failed to instantiate cached model scene";return RHIZO_ERROR_INTERNAL;}ids[n.id]=id;}
+  for(const auto&n:source.nodes()){auto*dst=c->scene.get(ids[n.id]);dst->local=n.local;dst->visible=n.visible;dst->has_camera=n.has_camera;dst->camera=n.camera;dst->has_light=n.has_light;dst->light=n.light;for(uint32_t m:n.mesh_indices)dst->mesh_indices.push_back(meshBase+m);if(n.parent&&!c->scene.set_parent(dst->id,ids[n.parent])){c->last_error="Cached model hierarchy is invalid";return RHIZO_ERROR_INTERNAL;}}
+  out->node_count=static_cast<uint32_t>(source.nodes().size());out->mesh_count=static_cast<uint32_t>(source.meshes.size());out->material_count=static_cast<uint32_t>(source.materials.size());
+  std::memset(out->resolved_model_path,0,sizeof(out->resolved_model_path));std::strncpy(out->resolved_model_path,resource->source.c_str(),sizeof(out->resolved_model_path)-1);c->last_error.clear();return RHIZO_SUCCESS;
 }
 uint32_t rhizo_scene_get_mesh_count(const RhizoContext*c){return c?static_cast<uint32_t>(c->scene.meshes.size()):0;}
 RhizoResult rhizo_scene_get_mesh_info(const RhizoContext*c,uint32_t i,RhizoMeshInfo*out){
@@ -567,4 +574,16 @@ void rhizo_resources_clear(RhizoContext*c){if(c)c->resources.clear();}
 RhizoResult rhizo_resources_get_stats(const RhizoContext*c,RhizoResourceStats*out){
  if(!c||!out||out->struct_size<sizeof(RhizoResourceStats))return RHIZO_ERROR_INVALID_ARGUMENT;out->texture_cache_entries=static_cast<uint32_t>(c->resources.texture_cache_size());out->model_cache_entries=static_cast<uint32_t>(c->resources.model_cache_size());out->asset_count=static_cast<uint32_t>(c->assets.assets().size());return RHIZO_SUCCESS;
 }
+
+RhizoResult rhizo_texture_load(RhizoContext*c,const char*path,RhizoTexture**out){
+ if(!c||!path||!*path||!out)return RHIZO_ERROR_INVALID_ARGUMENT;*out=nullptr;std::string error;auto resource=c->resources.load_texture(path,error);if(!resource){c->last_error=std::move(error);return RHIZO_ERROR_INTERNAL;}
+ auto handle=new(std::nothrow) RhizoTexture();if(!handle)return RHIZO_ERROR_OUT_OF_MEMORY;handle->resource=std::move(resource);*out=handle;c->last_error.clear();return RHIZO_SUCCESS;
+}
+RhizoResult rhizo_texture_get_info(const RhizoTexture*t,uint32_t*w,uint32_t*h,uint64_t*bytes){
+ if(!t||!t->resource||!w||!h||!bytes)return RHIZO_ERROR_INVALID_ARGUMENT;*w=t->resource->width;*h=t->resource->height;*bytes=static_cast<uint64_t>(t->resource->rgba.size());return RHIZO_SUCCESS;
+}
+RhizoResult rhizo_texture_copy_pixels(const RhizoTexture*t,void*dst,uint64_t capacity){
+ if(!t||!t->resource||!dst||capacity<t->resource->rgba.size())return RHIZO_ERROR_INVALID_ARGUMENT;std::memcpy(dst,t->resource->rgba.data(),t->resource->rgba.size());return RHIZO_SUCCESS;
+}
+void rhizo_texture_release(RhizoTexture*t){delete t;}
 }  // extern "C"
