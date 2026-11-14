@@ -61,3 +61,15 @@ RHIZO integrates Bullet Physics (zlib license) as its CPU-side simulation backen
 Physics component descriptors are stored in the scene's custom-component payloads, so scene and prefab serialization retain body, joint and animation-binding configuration. After scene loading, RHIZO rebuilds the physics world from those persisted descriptors. Removing a body also removes constraints that reference it, preventing stale serialized links. Call `rhizo_physics_step` once per frame with elapsed seconds; the solver uses a bounded fixed substep and writes dynamic-body transforms back to the scene. Kinematic bodies follow scene/animation transforms. Dynamic mesh colliders use convex hulls; static mesh colliders use triangle meshes.
 
 The simulation runs on the CPU and is independent of Vulkan rendering. Physical-device timing and collision behavior still require runtime testing on target hardware.
+
+
+## Stage 6 — Runtime systems
+
+- Audio Engine: Android AAudio low-latency float stereo output; mono/stereo PCM upload; WAV PCM16/24/32 and IEEE float32 decoding; 2D/3D voices; listener orientation; distance attenuation; stereo panning; looping; pause/stop; pitch and gain controls.
+- Touch Input: normalized 10-pointer touch state, deltas, down/move/up/cancel, keyboard events, named actions, touch buttons and horizontal/vertical touch axes. Flux Studio forwards Android MotionEvent data through the C ABI.
+- Particle System: seeded emitters, point/sphere/box spawn volumes, continuous rate and bursts, lifetime, speed cone, gravity, drag, size/color curves, capacity limits and optional raycast collision/bounce against Stage 5 physics. Emitter descriptors persist in scenes and prefabs. Particle records are returned in world space for billboard rendering by Flux Studio.
+- Input API: stable C ABI for action setup and state polling. Input maps are configured by the host application; touch events and actions are forwarded through RHIZO.
+- Frame order: call rhizo_input_begin_frame before forwarding touch/key events; step physics, then particles; poll actions and particle records for rendering.
+- Audio assets: WAV paths are loaded from app-accessible storage; PCM upload supports decoded/streamed assets. Clip IDs and active voices are runtime handles and should be reconstructed by Flux Studio from project asset references.
+
+Particle simulation is CPU-side and supplies world-space render records. A dedicated Vulkan billboard pipeline is not included in this stage; Flux Studio's integration pass must render the returned particle records.
