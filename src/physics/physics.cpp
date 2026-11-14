@@ -77,10 +77,11 @@ bool PhysicsWorld::rebuild(Scene& s,std::string& error){
   auto anim=set->values.find(kAnim);if(anim!=set->values.end()&&anim->second.size()==sizeof(RhizoPhysicsAnimationInfo)){RhizoPhysicsAnimationInfo d{};std::memcpy(&d,anim->second.data(),sizeof(d));if(!set_animation_mode(s,node.id,d)){error="Invalid serialized physics-animation mode";return false;}}
  }
  for(const auto& node:s.nodes()){
-  const auto* set=s.components.get<CustomComponentSet>(node.id);if(!set)continue;
+  auto* set=s.components.get<CustomComponentSet>(node.id);if(!set)continue;
   auto joint=set->values.find(kJoint);if(joint==set->values.end())continue;
   if(joint->second.size()%sizeof(RhizoPhysicsJointInfo)!=0){error="Corrupt serialized physics-joint data";return false;}
   const auto descriptors=joint->second;
+  set->values.erase(kJoint);
   for(size_t offset=0;offset<descriptors.size();offset+=sizeof(RhizoPhysicsJointInfo)){RhizoPhysicsJointInfo d{};std::memcpy(&d,descriptors.data()+offset,sizeof(d));if(!create_joint(s,node.id,d,error))return false;}
  }
  return true;
