@@ -124,8 +124,8 @@ void main() {
     vec4 hdr = texture(hdrColor, uv);
     float depth = texture(sceneDepth, uv).r;
     vec3 scene = max(hdr.rgb, vec3(0.0));
+    vec3 worldPosition = reconstructWorld(uv, depth);
     if (depth < 0.99999) {
-        vec3 worldPosition = reconstructWorld(uv, depth);
         vec3 rightPosition = reconstructWorld(uv + vec2(texel.x,0.0), texture(sceneDepth,uv+vec2(texel.x,0.0)).r);
         vec3 upPosition = reconstructWorld(uv + vec2(0.0,texel.y), texture(sceneDepth,uv+vec2(0.0,texel.y)).r);
         vec3 normal = normalize(cross(rightPosition-worldPosition, upPosition-worldPosition));
