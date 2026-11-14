@@ -28,6 +28,6 @@ int main(){
  assert(particles.step(scene,0.25,nullptr,nullptr));assert(particles.count(emitter)==3);
  RhizoParticle out[16]{};assert(particles.copy(emitter,out,16)==3);
  assert(std::fabs(out[0].position[1]-0.5f)<0.001f);assert(out[0].size<1.0f&&out[0].color[0]<1.0f);
- assert(particles.step(scene,0.3,nullptr,nullptr));assert(particles.count(emitter)==0);
+ assert(particles.step(scene,0.25,nullptr,nullptr));assert(particles.count(emitter)==0);
  assert(particles.remove_emitter(scene,emitter));return 0;
 }
