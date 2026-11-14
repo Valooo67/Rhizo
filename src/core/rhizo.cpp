@@ -11,6 +11,7 @@
 #include "rhizo/resource_manager.hpp"
 #include "rhizo/shadow_map.hpp"
 #include "rhizo/editor_geometry.hpp"
+#include "rhizo/physics.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -32,6 +33,7 @@ struct RhizoContext {
   std::string last_error;
   std::vector<RhizoBuffer*> buffers;
   rhizo::Scene scene;
+  rhizo::PhysicsWorld physics;
   rhizo::AssetManager assets;
   rhizo::ResourceManager resources;
   rhizo::Animation animation;
@@ -652,4 +654,16 @@ RhizoResult rhizo_scene_component_remove(RhizoContext*c,uint32_t entity,uint32_t
 uint8_t rhizo_scene_component_has(const RhizoContext*c,uint32_t entity,uint32_t type){
  if(!c||type==0)return 0;const auto*set=c->scene.components.get<rhizo::CustomComponentSet>(entity);return set&&set->values.contains(type)?1u:0u;
 }
+
+RhizoResult rhizo_physics_body_create(RhizoContext*c,uint32_t id,const RhizoRigidBodyInfo*i){if(!c||!i||!c->scene.get(id))return RHIZO_ERROR_INVALID_ARGUMENT;std::string e;if(!c->physics.create_body(c->scene,id,*i,e)){c->last_error=std::move(e);return RHIZO_ERROR_INVALID_ARGUMENT;}return RHIZO_SUCCESS;}
+RhizoResult rhizo_physics_body_remove(RhizoContext*c,uint32_t id){if(!c||!c->scene.get(id))return RHIZO_ERROR_INVALID_ARGUMENT;c->physics.remove_body(c->scene,id);return RHIZO_SUCCESS;}
+RhizoResult rhizo_physics_body_set_velocity(RhizoContext*c,uint32_t id,const float*l,const float*a){if(!c||!l||!a)return RHIZO_ERROR_INVALID_ARGUMENT;for(int k=0;k<3;k++)if(!std::isfinite(l[k])||!std::isfinite(a[k]))return RHIZO_ERROR_INVALID_ARGUMENT;return c->physics.set_velocity(id,l,a)?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;}
+RhizoResult rhizo_physics_body_apply_force(RhizoContext*c,uint32_t id,const float*f){if(!c||!f)return RHIZO_ERROR_INVALID_ARGUMENT;return c->physics.apply_force(id,f,false)?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;}
+RhizoResult rhizo_physics_body_apply_impulse(RhizoContext*c,uint32_t id,const float*f){if(!c||!f)return RHIZO_ERROR_INVALID_ARGUMENT;return c->physics.apply_force(id,f,true)?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;}
+RhizoResult rhizo_physics_joint_create(RhizoContext*c,uint32_t id,const RhizoPhysicsJointInfo*i){if(!c||!i)return RHIZO_ERROR_INVALID_ARGUMENT;std::string e;if(!c->physics.create_joint(c->scene,id,*i,e)){c->last_error=std::move(e);return RHIZO_ERROR_INVALID_ARGUMENT;}return RHIZO_SUCCESS;}
+RhizoResult rhizo_physics_joint_remove(RhizoContext*c,uint32_t id){if(!c)return RHIZO_ERROR_INVALID_ARGUMENT;c->physics.remove_joint(c->scene,id);return RHIZO_SUCCESS;}
+RhizoResult rhizo_physics_set_animation_mode(RhizoContext*c,uint32_t id,const RhizoPhysicsAnimationInfo*i){if(!c||!i||!c->physics.set_animation_mode(c->scene,id,*i))return RHIZO_ERROR_INVALID_ARGUMENT;return RHIZO_SUCCESS;}
+RhizoResult rhizo_physics_step(RhizoContext*c,double dt){if(!c)return RHIZO_ERROR_INVALID_ARGUMENT;std::string e;if(!c->physics.step(c->scene,dt,e)){c->last_error=std::move(e);return RHIZO_ERROR_INVALID_ARGUMENT;}return RHIZO_SUCCESS;}
+RhizoResult rhizo_physics_raycast(const RhizoContext*c,const float*a,const float*b,RhizoRaycastHit*out){if(!c||!a||!b||!out)return RHIZO_ERROR_INVALID_ARGUMENT;return c->physics.raycast(a,b,*out)?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;}
+void rhizo_physics_clear(RhizoContext*c){if(c)c->physics.clear();}
 }  // extern "C"
