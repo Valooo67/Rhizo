@@ -33,6 +33,13 @@ typedef struct RhizoPhysicsAnimationInfo { uint32_t struct_size,mode; float blen
 typedef struct RhizoRaycastHit { uint32_t entity_id; float fraction,point[3],normal[3]; } RhizoRaycastHit;
 typedef struct RhizoBuffer RhizoBuffer;
 typedef struct RhizoTexture RhizoTexture;
+typedef struct RhizoInputActionState { uint32_t struct_size; float value; uint8_t pressed,just_pressed,just_released,reserved; } RhizoInputActionState;
+typedef struct RhizoInputTouchState { uint32_t struct_size; float x,y,delta_x,delta_y; uint8_t active,reserved[3]; } RhizoInputTouchState;
+typedef struct RhizoParticleEmitterInfo { uint32_t struct_size,version,capacity,shape; float emission_rate,lifetime_min,lifetime_max,speed_min,speed_max,size_start,size_end; float color_start[4],color_end[4],gravity[3],force[3],direction[3],extents[3]; float cone_angle,drag,restitution; uint8_t collision_enabled,enabled,reserved[2]; uint32_t seed; } RhizoParticleEmitterInfo;
+typedef struct RhizoParticle { uint32_t entity_id; float position[3],velocity[3],age,lifetime,size,color[4]; } RhizoParticle;
+typedef struct RhizoAudioStats { uint32_t struct_size,clip_count,active_voice_count; float master_volume; } RhizoAudioStats;
+enum { RHIZO_TOUCH_DOWN=0u,RHIZO_TOUCH_MOVE=1u,RHIZO_TOUCH_UP=2u,RHIZO_TOUCH_CANCEL=3u };
+enum { RHIZO_PARTICLE_POINT=0u,RHIZO_PARTICLE_SPHERE=1u,RHIZO_PARTICLE_BOX=2u };
 typedef enum RhizoResult {
   RHIZO_SUCCESS=0, RHIZO_ERROR_INVALID_ARGUMENT=1, RHIZO_ERROR_OUT_OF_MEMORY=2,
   RHIZO_ERROR_VULKAN=3, RHIZO_ERROR_UNSUPPORTED_DEVICE=4, RHIZO_ERROR_INTERNAL=5
@@ -232,6 +239,41 @@ RHIZO_API RhizoResult rhizo_texture_load(RhizoContext*,const char*,RhizoTexture*
 RHIZO_API RhizoResult rhizo_texture_get_info(const RhizoTexture*,uint32_t*,uint32_t*,uint64_t*);
 RHIZO_API RhizoResult rhizo_texture_copy_pixels(const RhizoTexture*,void*,uint64_t);
 RHIZO_API void rhizo_texture_release(RhizoTexture*);
+
+/* Audio output: AAudio, mono/stereo PCM and WAV files. */
+RHIZO_API RhizoResult rhizo_audio_load_wav(RhizoContext*,const char*,uint32_t*);
+RHIZO_API RhizoResult rhizo_audio_load_pcm(RhizoContext*,const float*,uint64_t,uint32_t,uint32_t,uint32_t*);
+RHIZO_API RhizoResult rhizo_audio_unload_clip(RhizoContext*,uint32_t);
+RHIZO_API RhizoResult rhizo_audio_play(RhizoContext*,uint32_t,uint8_t,uint8_t,float,float,const float[3],uint32_t*);
+RHIZO_API RhizoResult rhizo_audio_source_stop(RhizoContext*,uint32_t);
+RHIZO_API RhizoResult rhizo_audio_source_pause(RhizoContext*,uint32_t,uint8_t);
+RHIZO_API RhizoResult rhizo_audio_source_set(RhizoContext*,uint32_t,const float[3],float,float);
+RHIZO_API RhizoResult rhizo_audio_set_listener(RhizoContext*,const float[3],const float[3],const float[3]);
+RHIZO_API RhizoResult rhizo_audio_set_master_volume(RhizoContext*,float);
+RHIZO_API RhizoResult rhizo_audio_get_stats(const RhizoContext*,RhizoAudioStats*);
+RHIZO_API void rhizo_audio_shutdown(RhizoContext*);
+
+/* Normalized multi-touch coordinates; call begin_frame before forwarding input events. */
+RHIZO_API void rhizo_input_begin_frame(RhizoContext*);
+RHIZO_API RhizoResult rhizo_input_touch_event(RhizoContext*,uint32_t,uint32_t,float,float,float,float);
+RHIZO_API RhizoResult rhizo_input_key_event(RhizoContext*,int32_t,uint8_t);
+RHIZO_API RhizoResult rhizo_input_bind_key(RhizoContext*,const char*,int32_t);
+RHIZO_API RhizoResult rhizo_input_bind_touch_button(RhizoContext*,const char*,float,float,float,float);
+RHIZO_API RhizoResult rhizo_input_bind_touch_axis(RhizoContext*,const char*,float,float,float,float,uint32_t);
+RHIZO_API RhizoResult rhizo_input_get_action(const RhizoContext*,const char*,RhizoInputActionState*);
+RHIZO_API RhizoResult rhizo_input_get_touch(const RhizoContext*,uint32_t,RhizoInputTouchState*);
+RHIZO_API RhizoResult rhizo_input_remove_action(RhizoContext*,const char*);
+RHIZO_API void rhizo_input_clear(RhizoContext*);
+
+/* Particle records are world-space; the host renders them as camera-facing billboards. */
+RHIZO_API RhizoResult rhizo_particle_emitter_set(RhizoContext*,uint32_t,const RhizoParticleEmitterInfo*);
+RHIZO_API RhizoResult rhizo_particle_emitter_remove(RhizoContext*,uint32_t);
+RHIZO_API RhizoResult rhizo_particle_burst(RhizoContext*,uint32_t,uint32_t);
+RHIZO_API RhizoResult rhizo_particle_step(RhizoContext*,double);
+RHIZO_API uint32_t rhizo_particle_get_count(const RhizoContext*,uint32_t);
+RHIZO_API RhizoResult rhizo_particle_copy(const RhizoContext*,uint32_t,RhizoParticle*,uint32_t,uint32_t*);
+RHIZO_API void rhizo_particle_clear(RhizoContext*);
+
 #ifdef __cplusplus
 }
 #endif

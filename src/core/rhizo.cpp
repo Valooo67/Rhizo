@@ -12,6 +12,9 @@
 #include "rhizo/shadow_map.hpp"
 #include "rhizo/editor_geometry.hpp"
 #include "rhizo/physics.hpp"
+#include "rhizo/audio_engine.hpp"
+#include "rhizo/input.hpp"
+#include "rhizo/particle_system.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -34,6 +37,9 @@ struct RhizoContext {
   std::vector<RhizoBuffer*> buffers;
   rhizo::Scene scene;
   rhizo::PhysicsWorld physics;
+  rhizo::AudioEngine audio;
+  rhizo::InputSystem input;
+  rhizo::ParticleSystem particles;
   rhizo::AssetManager assets;
   rhizo::ResourceManager resources;
   rhizo::Animation animation;
@@ -368,7 +374,7 @@ RhizoResult rhizo_scene_create_node(RhizoContext* c,uint32_t parent,const char* 
   if(!c||!out||(parent!=0&&!c->scene.get(parent)))return RHIZO_ERROR_INVALID_ARGUMENT;
   try{*out=c->scene.create(name&&*name?name:"Object",parent);return *out?RHIZO_SUCCESS:RHIZO_ERROR_OUT_OF_MEMORY;}catch(...){return RHIZO_ERROR_OUT_OF_MEMORY;}
 }
-RhizoResult rhizo_scene_destroy_node(RhizoContext*c,uint32_t id){return c&&c->scene.destroy(id)?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;}
+RhizoResult rhizo_scene_destroy_node(RhizoContext*c,uint32_t id){if(!c||!c->scene.get(id))return RHIZO_ERROR_INVALID_ARGUMENT;c->particles.remove_emitter(c->scene,id);return c->scene.destroy(id)?RHIZO_SUCCESS:RHIZO_ERROR_INTERNAL;}
 RhizoResult rhizo_scene_set_parent(RhizoContext*c,uint32_t id,uint32_t parent){return c&&c->scene.set_parent(id,parent)?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;}
 RhizoResult rhizo_scene_set_transform(RhizoContext*c,uint32_t id,const RhizoTransform*t){
   if(!c||!t)return RHIZO_ERROR_INVALID_ARGUMENT;auto*n=c->scene.get(id);if(!n)return RHIZO_ERROR_INVALID_ARGUMENT;
@@ -607,13 +613,13 @@ RhizoResult rhizo_scene_save(RhizoContext*c,const char*path){
 }
 RhizoResult rhizo_scene_load(RhizoContext*c,const char*path){
  if(!c||!path||!*path)return RHIZO_ERROR_INVALID_ARGUMENT;rhizo::Scene loaded;std::string error;if(!rhizo::load_scene(loaded,path,error)){c->last_error=std::move(error);return RHIZO_ERROR_INTERNAL;}
- c->scene=std::move(loaded);c->physics.clear();if(!c->physics.rebuild(c->scene,error)){c->last_error=std::move(error);return RHIZO_ERROR_INTERNAL;}c->animation=rhizo::Animation{};c->animation_player.bind(nullptr);c->animation_clips.clear();c->animation_clip_names.clear();c->next_animation_clip_id=1;c->active_animation_clip=0;c->animation_state_machine=rhizo::AnimationStateMachine{};c->camera_shake_origins.clear();c->selected_entity=0;c->last_error.clear();return RHIZO_SUCCESS;
+ c->scene=std::move(loaded);c->physics.clear();if(!c->physics.rebuild(c->scene,error)){c->last_error=std::move(error);return RHIZO_ERROR_INTERNAL;}if(!c->particles.rebuild(c->scene)){c->last_error="Invalid serialized particle emitter component";return RHIZO_ERROR_INTERNAL;}c->animation=rhizo::Animation{};c->animation_player.bind(nullptr);c->animation_clips.clear();c->animation_clip_names.clear();c->next_animation_clip_id=1;c->active_animation_clip=0;c->animation_state_machine=rhizo::AnimationStateMachine{};c->camera_shake_origins.clear();c->selected_entity=0;c->last_error.clear();return RHIZO_SUCCESS;
 }
 RhizoResult rhizo_prefab_save(RhizoContext*c,uint32_t root,const char*path){
  if(!c||!path||!*path||!root)return RHIZO_ERROR_INVALID_ARGUMENT;std::string error;if(!rhizo::save_prefab(c->scene,root,path,error)){c->last_error=std::move(error);return RHIZO_ERROR_INTERNAL;}c->last_error.clear();return RHIZO_SUCCESS;
 }
 RhizoResult rhizo_prefab_instantiate(RhizoContext*c,const char*path,uint32_t parent,uint32_t*out_root){
- if(!c||!path||!*path||!out_root)return RHIZO_ERROR_INVALID_ARGUMENT;*out_root=0;std::string error;if(!rhizo::instantiate_prefab(c->scene,path,parent,*out_root,error)){c->last_error=std::move(error);return RHIZO_ERROR_INTERNAL;}c->last_error.clear();return RHIZO_SUCCESS;
+ if(!c||!path||!*path||!out_root)return RHIZO_ERROR_INVALID_ARGUMENT;*out_root=0;std::string error;if(!rhizo::instantiate_prefab(c->scene,path,parent,*out_root,error)){c->last_error=std::move(error);return RHIZO_ERROR_INTERNAL;}if(!c->particles.rebuild(c->scene)){c->last_error="Invalid particle emitter in prefab";return RHIZO_ERROR_INTERNAL;}c->last_error.clear();return RHIZO_SUCCESS;
 }
 RhizoResult rhizo_assets_scan(RhizoContext*c,const char*root){
  if(!c||!root||!*root)return RHIZO_ERROR_INVALID_ARGUMENT;std::string error;if(!c->assets.scan(root,error)){c->last_error=std::move(error);return RHIZO_ERROR_INTERNAL;}c->last_error.clear();return RHIZO_SUCCESS;
@@ -666,4 +672,36 @@ RhizoResult rhizo_physics_set_animation_mode(RhizoContext*c,uint32_t id,const Rh
 RhizoResult rhizo_physics_step(RhizoContext*c,double dt){if(!c)return RHIZO_ERROR_INVALID_ARGUMENT;std::string e;if(!c->physics.step(c->scene,dt,e)){c->last_error=std::move(e);return RHIZO_ERROR_INVALID_ARGUMENT;}return RHIZO_SUCCESS;}
 RhizoResult rhizo_physics_raycast(const RhizoContext*c,const float*a,const float*b,RhizoRaycastHit*out){if(!c||!a||!b||!out)return RHIZO_ERROR_INVALID_ARGUMENT;return c->physics.raycast(a,b,*out)?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;}
 void rhizo_physics_clear(RhizoContext*c){if(c)c->physics.clear();}
+
+RhizoResult rhizo_audio_load_wav(RhizoContext*c,const char*p,uint32_t*out){if(!c||!p||!out)return RHIZO_ERROR_INVALID_ARGUMENT;std::string e;if(!c->audio.load_wav(p,*out,e)){c->last_error=std::move(e);return RHIZO_ERROR_INVALID_ARGUMENT;}return RHIZO_SUCCESS;}
+RhizoResult rhizo_audio_load_pcm(RhizoContext*c,const float*s,uint64_t n,uint32_t rate,uint32_t channels,uint32_t*out){if(!c||!s||!out)return RHIZO_ERROR_INVALID_ARGUMENT;std::string e;if(!c->audio.load_pcm(s,n,rate,channels,*out,e)){c->last_error=std::move(e);return RHIZO_ERROR_INVALID_ARGUMENT;}return RHIZO_SUCCESS;}
+RhizoResult rhizo_audio_unload_clip(RhizoContext*c,uint32_t id){return c&&c->audio.unload_clip(id)?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;}
+RhizoResult rhizo_audio_play(RhizoContext*c,uint32_t clip,uint8_t spatial,uint8_t loop,float gain,float pitch,const float*pos,uint32_t*out){if(!c||!out||(spatial&&!pos))return RHIZO_ERROR_INVALID_ARGUMENT;std::string e;if(!c->audio.play(clip,spatial!=0,loop!=0,gain,pitch,pos,*out,e)){c->last_error=std::move(e);return RHIZO_ERROR_INVALID_ARGUMENT;}return RHIZO_SUCCESS;}
+RhizoResult rhizo_audio_source_stop(RhizoContext*c,uint32_t id){return c&&c->audio.stop(id)?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;}
+RhizoResult rhizo_audio_source_pause(RhizoContext*c,uint32_t id,uint8_t pause){return c&&c->audio.pause(id,pause!=0)?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;}
+RhizoResult rhizo_audio_source_set(RhizoContext*c,uint32_t id,const float*p,float gain,float pitch){return c&&p&&c->audio.set_source(id,p,gain,pitch)?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;}
+RhizoResult rhizo_audio_set_listener(RhizoContext*c,const float*p,const float*f,const float*u){return c&&c->audio.set_listener(p,f,u)?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;}
+RhizoResult rhizo_audio_set_master_volume(RhizoContext*c,float v){return c&&c->audio.set_master_volume(v)?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;}
+RhizoResult rhizo_audio_get_stats(const RhizoContext*c,RhizoAudioStats*out){if(!c||!out||out->struct_size<sizeof(RhizoAudioStats))return RHIZO_ERROR_INVALID_ARGUMENT;out->clip_count=c->audio.clip_count();out->active_voice_count=c->audio.active_voice_count();out->master_volume=c->audio.master_volume();return RHIZO_SUCCESS;}
+void rhizo_audio_shutdown(RhizoContext*c){if(c)c->audio.shutdown();}
+
+void rhizo_input_begin_frame(RhizoContext*c){if(c)c->input.begin_frame();}
+RhizoResult rhizo_input_touch_event(RhizoContext*c,uint32_t pointer,uint32_t action,float x,float y,float width,float height){if(!c||!std::isfinite(width)||!std::isfinite(height)||width<=0||height<=0)return RHIZO_ERROR_INVALID_ARGUMENT;return c->input.touch_event(pointer,action,x/width,y/height)?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;}
+RhizoResult rhizo_input_key_event(RhizoContext*c,int32_t key,uint8_t down){return c&&c->input.key_event(key,down!=0)?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;}
+RhizoResult rhizo_input_bind_key(RhizoContext*c,const char*n,int32_t key){return c&&n&&c->input.bind_key(n,key)?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;}
+RhizoResult rhizo_input_bind_touch_button(RhizoContext*c,const char*n,float x,float y,float w,float h){return c&&n&&c->input.bind_touch_button(n,x,y,w,h)?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;}
+RhizoResult rhizo_input_bind_touch_axis(RhizoContext*c,const char*n,float x,float y,float w,float h,uint32_t axis){return c&&n&&c->input.bind_touch_axis(n,x,y,w,h,axis)?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;}
+RhizoResult rhizo_input_get_action(const RhizoContext*c,const char*n,RhizoInputActionState*out){if(!c||!n||!out||out->struct_size<sizeof(RhizoInputActionState))return RHIZO_ERROR_INVALID_ARGUMENT;rhizo::InputActionState s;if(!c->input.get_action(n,s))return RHIZO_ERROR_INVALID_ARGUMENT;out->value=s.value;out->pressed=s.pressed;out->just_pressed=s.just_pressed;out->just_released=s.just_released;return RHIZO_SUCCESS;}
+RhizoResult rhizo_input_get_touch(const RhizoContext*c,uint32_t id,RhizoInputTouchState*out){if(!c||!out||out->struct_size<sizeof(RhizoInputTouchState))return RHIZO_ERROR_INVALID_ARGUMENT;rhizo::InputTouch t;if(!c->input.get_touch(id,t))return RHIZO_ERROR_INVALID_ARGUMENT;out->x=t.x;out->y=t.y;out->delta_x=t.delta_x;out->delta_y=t.delta_y;out->active=t.active;return RHIZO_SUCCESS;}
+RhizoResult rhizo_input_remove_action(RhizoContext*c,const char*n){if(!c||!n||!*n)return RHIZO_ERROR_INVALID_ARGUMENT;c->input.remove_action(n);return RHIZO_SUCCESS;}
+void rhizo_input_clear(RhizoContext*c){if(c)c->input.clear();}
+
+RhizoResult rhizo_particle_emitter_set(RhizoContext*c,uint32_t id,const RhizoParticleEmitterInfo*i){return c&&i&&c->particles.set_emitter(c->scene,id,*i)?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;}
+RhizoResult rhizo_particle_emitter_remove(RhizoContext*c,uint32_t id){return c&&c->particles.remove_emitter(c->scene,id)?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;}
+RhizoResult rhizo_particle_burst(RhizoContext*c,uint32_t id,uint32_t count){return c&&c->particles.burst(c->scene,id,count)?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;}
+RhizoResult rhizo_particle_step(RhizoContext*c,double dt){return c&&c->particles.step(c->scene,dt,&c->physics,[](void*user,const float*a,const float*b,RhizoRaycastHit&hit)->bool{return static_cast<rhizo::PhysicsWorld*>(user)->raycast(a,b,hit);})?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;}
+uint32_t rhizo_particle_get_count(const RhizoContext*c,uint32_t id){return c?c->particles.count(id):0;}
+RhizoResult rhizo_particle_copy(const RhizoContext*c,uint32_t id,RhizoParticle*out,uint32_t capacity,uint32_t*count){if(!c||!count)return RHIZO_ERROR_INVALID_ARGUMENT;const uint32_t needed=c->particles.count(id);*count=needed;if(needed==0)return RHIZO_SUCCESS;if(!out||capacity<needed)return RHIZO_ERROR_INVALID_ARGUMENT;*count=c->particles.copy(id,out,capacity);return RHIZO_SUCCESS;}
+void rhizo_particle_clear(RhizoContext*c){if(c)c->particles.clear();}
+
 }  // extern "C"
