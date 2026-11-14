@@ -50,10 +50,37 @@ bool PhysicsWorld::create_joint(Scene& s,EntityId id,const RhizoPhysicsJointInfo
  impl_->world->addConstraint(j.get(),d.disable_collision!=0);impl_->joints.emplace(id,std::move(j));auto& bytes=s.components.emplace<CustomComponentSet>(id).values[kJoint];bytes.resize(sizeof(d));std::memcpy(bytes.data(),&d,sizeof(d));return true;
 }
 bool PhysicsWorld::remove_joint(Scene& s,EntityId id){impl_->dropJoint(id);if(auto* c=s.components.get<CustomComponentSet>(id))c->values.erase(kJoint);return true;}
-bool PhysicsWorld::set_animation_mode(Scene& s,EntityId id,const RhizoPhysicsAnimationInfo& d){if(!s.get(id)||d.struct_size<sizeof(d)||d.mode>RHIZO_PHYSICS_ANIMATION_BLEND||!std::isfinite(d.blend)||d.blend<0||d.blend>1)return false;impl_->animation[id]=d;auto& bytes=s.components.emplace<CustomComponentSet>(id).values[kAnim];bytes.resize(sizeof(d));std::memcpy(bytes.data(),&d,sizeof(d));return true;}
+bool PhysicsWorld::set_animation_mode(Scene& s,EntityId id,const RhizoPhysicsAnimationInfo& d){
+ if(!s.get(id)||d.struct_size<sizeof(d)||d.mode>RHIZO_PHYSICS_ANIMATION_BLEND||!std::isfinite(d.blend)||d.blend<0||d.blend>1)return false;
+ impl_->animation[id]=d;
+ auto body=impl_->bodies.find(id);
+ if(body!=impl_->bodies.end()){
+  auto& rb=*body->second.rigid;
+  if(d.mode==RHIZO_PHYSICS_ANIMATION_DRIVES){rb.setCollisionFlags(rb.getCollisionFlags()|btCollisionObject::CF_KINEMATIC_OBJECT);rb.setMassProps(0,btVector3(0,0,0));rb.setActivationState(DISABLE_DEACTIVATION);}
+  else if(body->second.desc.body_type==RHIZO_BODY_DYNAMIC){rb.setCollisionFlags(rb.getCollisionFlags()&~btCollisionObject::CF_KINEMATIC_OBJECT);float mass=body->second.desc.mass>0?body->second.desc.mass:body->second.desc.density*volume(body->second.desc);btVector3 inertia(0,0,0);body->second.shape->calculateLocalInertia(mass,inertia);rb.setMassProps(mass,inertia);rb.updateInertiaTensor();rb.activate(true);}
+ }
+ auto& bytes=s.components.emplace<CustomComponentSet>(id).values[kAnim];bytes.resize(sizeof(d));std::memcpy(bytes.data(),&d,sizeof(d));return true;
+}
 bool PhysicsWorld::set_velocity(EntityId id,const float* l,const float* a){auto i=impl_->bodies.find(id);if(i==impl_->bodies.end()||!valid3(l)||!valid3(a))return false;i->second.rigid->setLinearVelocity(v3(l));i->second.rigid->setAngularVelocity(v3(a));i->second.rigid->activate(true);return true;}
 bool PhysicsWorld::apply_force(EntityId id,const float* f,bool impulse){auto i=impl_->bodies.find(id);if(i==impl_->bodies.end()||!valid3(f)||i->second.desc.body_type!=RHIZO_BODY_DYNAMIC)return false;if(impulse)i->second.rigid->applyCentralImpulse(v3(f));else i->second.rigid->applyCentralForce(v3(f));i->second.rigid->activate(true);return true;}
 bool PhysicsWorld::raycast(const float* a,const float* b,RhizoRaycastHit& out)const{if(!valid3(a)||!valid3(b))return false;btCollisionWorld::ClosestRayResultCallback cb(v3(a),v3(b));impl_->world->rayTest(v3(a),v3(b),cb);if(!cb.hasHit())return false;out.entity_id=static_cast<uint32_t>(cb.m_collisionObject->getUserIndex());out.fraction=static_cast<float>(cb.m_closestHitFraction);for(int k=0;k<3;k++){out.point[k]=cb.m_hitPointWorld[k];out.normal[k]=cb.m_hitNormalWorld[k];}return true;}
 bool PhysicsWorld::step(Scene& s,double dt,std::string& error){if(!std::isfinite(dt)||dt<0||dt>0.25){error="Physics delta must be in [0, 0.25] seconds";return false;}for(auto i=impl_->bodies.begin();i!=impl_->bodies.end();){if(!s.get(i->first)){auto id=i->first;++i;impl_->dropBody(id);}else ++i;}for(auto& [id,b]:impl_->bodies){auto a=impl_->animation.find(id);bool animated=a!=impl_->animation.end()&&a->second.mode==RHIZO_PHYSICS_ANIMATION_DRIVES;if(b.desc.body_type==RHIZO_BODY_KINEMATIC||animated){auto* n=s.get(id);if(n){auto t=toBt(n->local);b.rigid->setWorldTransform(t);b.rigid->getMotionState()->setWorldTransform(t);b.rigid->activate(true);}}}if(dt>0)impl_->world->stepSimulation(static_cast<btScalar>(dt),4,1.0f/60.0f);for(auto& [id,b]:impl_->bodies){if(b.desc.body_type!=RHIZO_BODY_DYNAMIC)continue;auto* n=s.get(id);if(!n)continue;auto a=impl_->animation.find(id);if(a!=impl_->animation.end()&&a->second.mode==RHIZO_PHYSICS_ANIMATION_DRIVES)continue;auto t=fromBt(b.rigid->getWorldTransform());if(a!=impl_->animation.end()&&a->second.mode==RHIZO_PHYSICS_ANIMATION_BLEND){float w=a->second.blend;n->local.position=n->local.position*(1-w)+t.position*w;n->local.rotation=slerp(n->local.rotation,t.rotation,w);}else{n->local.position=t.position;n->local.rotation=t.rotation;}}return true;}
 void PhysicsWorld::clear(){for(auto& [id,j]:impl_->joints){(void)id;impl_->world->removeConstraint(j.get());}impl_->joints.clear();for(auto& [id,b]:impl_->bodies){(void)id;impl_->world->removeRigidBody(b.rigid.get());}impl_->bodies.clear();impl_->animation.clear();}
+bool PhysicsWorld::rebuild(Scene& s,std::string& error){
+ clear();
+ for(const auto& node:s.nodes()){
+  const auto* set=s.components.get<CustomComponentSet>(node.id);if(!set)continue;
+  auto body=set->values.find(kBody);if(body!=set->values.end()&&body->second.size()==sizeof(RhizoRigidBodyInfo)){RhizoRigidBodyInfo d{};std::memcpy(&d,body->second.data(),sizeof(d));if(!create_body(s,node.id,d,error))return false;}
+ }
+ for(const auto& node:s.nodes()){
+  const auto* set=s.components.get<CustomComponentSet>(node.id);if(!set)continue;
+  auto anim=set->values.find(kAnim);if(anim!=set->values.end()&&anim->second.size()==sizeof(RhizoPhysicsAnimationInfo)){RhizoPhysicsAnimationInfo d{};std::memcpy(&d,anim->second.data(),sizeof(d));if(!set_animation_mode(s,node.id,d)){error="Invalid serialized physics-animation mode";return false;}}
+ }
+ for(const auto& node:s.nodes()){
+  const auto* set=s.components.get<CustomComponentSet>(node.id);if(!set)continue;
+  auto joint=set->values.find(kJoint);if(joint!=set->values.end()&&joint->second.size()==sizeof(RhizoPhysicsJointInfo)){RhizoPhysicsJointInfo d{};std::memcpy(&d,joint->second.data(),sizeof(d));if(!create_joint(s,node.id,d,error))return false;}
+ }
+ return true;
+}
+
 }
