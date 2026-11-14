@@ -3,7 +3,7 @@ layout(set=0,binding=0) uniform sampler2D hdrColor;
 layout(set=0,binding=1) uniform sampler2D sceneDepth;
 layout(set=0,binding=2) uniform sampler2D historyColor;
 layout(set=0,binding=3) uniform sampler2D historyDepth;
-layout(std140,set=0,binding=4) uniform TemporalSettings { float historyValid; } temporal;
+layout(std140,set=0,binding=4) uniform TemporalSettings { mat4 previousViewProjection; float historyValid; } temporal;
 layout(push_constant) uniform CompositePush {
     mat4 viewProjection;
     mat4 inverseViewProjection;
@@ -138,18 +138,36 @@ void main() {
         scene = depthOfField(scene, depth, texel);
     }
     if (temporal.historyValid > 0.5 && depth < 0.99999) {
-        float oldDepth = texture(historyDepth, uv).r;
-        float depthTolerance = 0.0015 + depth * 0.004;
-        if (abs(oldDepth - depth) < depthTolerance) {
-            vec3 neighborhoodMin = scene;
-            vec3 neighborhoodMax = scene;
-            for (int y=-1; y<=1; ++y) for (int x=-1; x<=1; ++x) {
-                vec3 neighbor = texture(hdrColor, uv + vec2(x,y)*texel).rgb;
-                neighborhoodMin = min(neighborhoodMin, neighbor);
-                neighborhoodMax = max(neighborhoodMax, neighbor);
+        vec4 previousClip = temporal.previousViewProjection * vec4(worldPosition, 1.0);
+        vec3 previousNdc = previousClip.xyz / max(abs(previousClip.w), 0.000001) * sign(previousClip.w);
+        vec2 previousUv = previousNdc.xy * 0.5 + 0.5;
+        float previousDepth = previousNdc.z;
+        vec2 velocity = uv - previousUv;
+        float velocityLength = length(velocity);
+        if (velocityLength > 0.0005 && velocityLength < 0.08) {
+            vec2 blurStep = velocity / 6.0;
+            vec3 motionBlur = scene * 0.2;
+            for (int sampleIndex=1; sampleIndex<=4; ++sampleIndex) {
+                float t = float(sampleIndex) / 4.0;
+                motionBlur += texture(hdrColor, uv - velocity*t).rgb * 0.1;
+                motionBlur += texture(hdrColor, uv + velocity*t).rgb * 0.1;
             }
-            vec3 history = clamp(texture(historyColor, uv).rgb, neighborhoodMin, neighborhoodMax);
-            scene = mix(scene, history, 0.88);
+            scene = mix(scene, motionBlur, clamp(velocityLength * 24.0, 0.0, 0.42));
+        }
+        if (all(greaterThan(previousUv, vec2(0.001))) && all(lessThan(previousUv, vec2(0.999)))) {
+            float oldDepth = texture(historyDepth, previousUv).r;
+            float depthTolerance = 0.0015 + abs(previousDepth) * 0.004;
+            if (abs(oldDepth - previousDepth) < depthTolerance) {
+                vec3 neighborhoodMin = scene;
+                vec3 neighborhoodMax = scene;
+                for (int y=-1; y<=1; ++y) for (int x=-1; x<=1; ++x) {
+                    vec3 neighbor = texture(hdrColor, uv + vec2(x,y)*texel).rgb;
+                    neighborhoodMin = min(neighborhoodMin, neighbor);
+                    neighborhoodMax = max(neighborhoodMax, neighbor);
+                }
+                vec3 history = clamp(texture(historyColor, previousUv).rgb, neighborhoodMin, neighborhoodMax);
+                scene = mix(scene, history, 0.88);
+            }
         }
     }
     scene += bloomContribution(texel);
