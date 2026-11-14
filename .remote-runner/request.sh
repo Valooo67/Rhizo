@@ -81,3 +81,5 @@ echo "===== RHIZO STAGE 5 BULLET PHYSICS + COLLISION + JOINTS + RAYCAST + ANIMAT
 # Stage 5 rerun after correcting Bullet FetchContent/link configuration.
 
 # Re-run after setting the CMake policy compatibility baseline for Bullet.
+
+# Re-run after adding Bullet public source include directory to RHIZO.
