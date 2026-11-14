@@ -22,7 +22,7 @@ echo "===== CHECKED OUT REVISION ====="
 git rev-parse HEAD
 git status --short
 echo "Stage 5 physics source revision: $(git rev-parse HEAD)"
-echo "Bullet Physics: rigid bodies, box/sphere/capsule/mesh colliders, fixed-step collision simulation, joints, raycasts and animation drive modes"
+echo "Bullet Physics: static/dynamic/kinematic rigid bodies, box/sphere/capsule/mesh colliders, fixed-step simulation, multiple joints per body, raycasts, material response and animation drive modes"
 echo "HDR composite includes depth-reconstructed SSAO, SSR, SSGI, DoF, reprojection TAA and camera motion blur; temporal color/depth history; bloom; sorted alpha-blended materials"
 echo "Final snapshot and serialization guards included"
 nproc
@@ -75,11 +75,3 @@ file build-android/librhizo.so
 sha256sum build-android/librhizo.so
 echo "===== RHIZO STAGE 5 BULLET PHYSICS + COLLISION + JOINTS + RAYCAST + ANIMATION SYNC + ARM64 BUILD: SUCCESS ====="
 
-# Stage 4 revision includes depth sampler, persistent projected decals and temporal history.
-
-# Post-effect bitmask and optimized shader revision verification.
-# Stage 5 rerun after correcting Bullet FetchContent/link configuration.
-
-# Re-run after setting the CMake policy compatibility baseline for Bullet.
-
-# Re-run after adding Bullet public source include directory to RHIZO.
