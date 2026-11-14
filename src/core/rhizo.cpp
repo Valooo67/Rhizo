@@ -267,7 +267,7 @@ void rhizo_destroy(RhizoContext* context) {
 
 
 RhizoResult rhizo_render_settings_set(RhizoContext*c,const RhizoRenderSettings*in){
- if(!c||!in||in->struct_size<sizeof(RhizoRenderSettings)||in->shadow_mode>RHIZO_SHADOWS_MAPS||
+ if(!c||!in||in->struct_size<sizeof(RhizoRenderSettings)||(in->post_effects&~static_cast<uint32_t>(RHIZO_POST_EFFECT_ALL))!=0u||in->shadow_mode>RHIZO_SHADOWS_MAPS||
  (in->shadow_resolution!=512&&in->shadow_resolution!=1024&&in->shadow_resolution!=2048&&in->shadow_resolution!=4096&&in->shadow_resolution!=8192)||
  !std::isfinite(in->shadow_bias)||!std::isfinite(in->shadow_normal_bias)||!std::isfinite(in->exposure)||!std::isfinite(in->environment_intensity)||!std::isfinite(in->render_scale)||
  in->shadow_bias<0||in->shadow_normal_bias<0||in->exposure<0||in->environment_intensity<0||in->render_scale<0.25f||in->render_scale>2.0f)return RHIZO_ERROR_INVALID_ARGUMENT;
