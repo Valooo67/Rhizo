@@ -18,6 +18,7 @@ class PhysicsWorld {
   bool raycast(const float*, const float*, RhizoRaycastHit&) const;
   bool step(Scene&, double, std::string&);
   void clear();
+  bool rebuild(Scene&, std::string&);
  private:
   struct Impl;
   std::unique_ptr<Impl> impl_;
