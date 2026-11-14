@@ -696,11 +696,10 @@ RhizoResult rhizo_input_get_touch(const RhizoContext*c,uint32_t id,RhizoInputTou
 RhizoResult rhizo_input_remove_action(RhizoContext*c,const char*n){if(!c||!n||!*n)return RHIZO_ERROR_INVALID_ARGUMENT;c->input.remove_action(n);return RHIZO_SUCCESS;}
 void rhizo_input_clear(RhizoContext*c){if(c)c->input.clear();}
 
-namespace { bool rhizo_particle_raycast(void*user,const float*a,const float*b,RhizoRaycastHit&hit){return static_cast<rhizo::PhysicsWorld*>(user)->raycast(a,b,hit);} }
 RhizoResult rhizo_particle_emitter_set(RhizoContext*c,uint32_t id,const RhizoParticleEmitterInfo*i){return c&&i&&c->particles.set_emitter(c->scene,id,*i)?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;}
 RhizoResult rhizo_particle_emitter_remove(RhizoContext*c,uint32_t id){return c&&c->particles.remove_emitter(c->scene,id)?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;}
 RhizoResult rhizo_particle_burst(RhizoContext*c,uint32_t id,uint32_t count){return c&&c->particles.burst(c->scene,id,count)?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;}
-RhizoResult rhizo_particle_step(RhizoContext*c,double dt){return c&&c->particles.step(c->scene,dt,&c->physics,&rhizo_particle_raycast)?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;}
+RhizoResult rhizo_particle_step(RhizoContext*c,double dt){return c&&c->particles.step(c->scene,dt,&c->physics,[](void*user,const float*a,const float*b,RhizoRaycastHit&hit)->bool{return static_cast<rhizo::PhysicsWorld*>(user)->raycast(a,b,hit);})?RHIZO_SUCCESS:RHIZO_ERROR_INVALID_ARGUMENT;}
 uint32_t rhizo_particle_get_count(const RhizoContext*c,uint32_t id){return c?c->particles.count(id):0;}
 RhizoResult rhizo_particle_copy(const RhizoContext*c,uint32_t id,RhizoParticle*out,uint32_t capacity,uint32_t*count){if(!c||!count)return RHIZO_ERROR_INVALID_ARGUMENT;const uint32_t needed=c->particles.count(id);*count=needed;if(needed==0)return RHIZO_SUCCESS;if(!out||capacity<needed)return RHIZO_ERROR_INVALID_ARGUMENT;*count=c->particles.copy(id,out,capacity);return RHIZO_SUCCESS;}
 void rhizo_particle_clear(RhizoContext*c){if(c)c->particles.clear();}

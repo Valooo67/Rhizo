@@ -19,7 +19,7 @@ bool ParticleSystem::remove_emitter(Scene&scene,EntityId id){auto i=emitters_.er
 bool ParticleSystem::spawn(Emitter&e,Vec3 origin){
  if(e.particles.size()>=e.info.capacity)return false;const auto&i=e.info;Particle p;p.position=origin;
  Vec3 dir=array3(i.direction);const float dlen=length(dir);dir=dlen>1e-6f?dir/dlen:Vec3{0,1,0};
- if(i.shape==1){const float z=random01(e.random)*2-1,a=random01(e.random)*6.2831853f,r=std::cbrt(random01(e.random));const float q=std::sqrt(std::max(0.0f,1-z*z));p.position=p.position+Vec3{q*std::cos(a),z,q*std::sin(a)}*r*std::max({i.extents[0],i.extents[1],i.extents[2]});}
+ if(i.shape==1){const float z=random01(e.random)*2-1,a=random01(e.random)*6.2831853f,r=std::cbrt(random01(e.random));const float q=std::sqrt(std::max(0.0f,1-z*z));p.position=p.position+Vec3{q*std::cos(a)*r*i.extents[0],z*r*i.extents[1],q*std::sin(a)*r*i.extents[2]};}
  else if(i.shape==2){p.position=p.position+Vec3{(random01(e.random)*2-1)*i.extents[0],(random01(e.random)*2-1)*i.extents[1],(random01(e.random)*2-1)*i.extents[2]};}
  const float angle=random01(e.random)*i.cone_angle,az=random01(e.random)*6.2831853f;Vec3 right=normalize(cross(dir,std::fabs(dir.y)<0.95f?Vec3{0,1,0}:Vec3{1,0,0})),up=normalize(cross(right,dir));const Vec3 spread=right*(std::sin(angle)*std::cos(az))+up*(std::sin(angle)*std::sin(az))+dir*std::cos(angle);const float speed=i.speed_min+(i.speed_max-i.speed_min)*random01(e.random);p.velocity=spread*speed;p.lifetime=i.lifetime_min+(i.lifetime_max-i.lifetime_min)*random01(e.random);p.size=i.size_start;p.color={i.color_start[0],i.color_start[1],i.color_start[2],i.color_start[3]};e.particles.push_back(p);return true;
 }

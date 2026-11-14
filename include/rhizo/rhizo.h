@@ -35,7 +35,7 @@ typedef struct RhizoBuffer RhizoBuffer;
 typedef struct RhizoTexture RhizoTexture;
 typedef struct RhizoInputActionState { uint32_t struct_size; float value; uint8_t pressed,just_pressed,just_released,reserved; } RhizoInputActionState;
 typedef struct RhizoInputTouchState { uint32_t struct_size; float x,y,delta_x,delta_y; uint8_t active,reserved[3]; } RhizoInputTouchState;
-typedef struct RhizoParticleEmitterInfo { uint32_t struct_size,version,capacity,shape; float emission_rate,lifetime_min,lifetime_max,speed_min,speed_max,size_start,size_end; float color_start[4],color_end[4],gravity[3],force[3],direction[3],extents[3]; float cone_angle,drag,restitution; uint8_t collision_enabled,looping,enabled,reserved; uint32_t seed; } RhizoParticleEmitterInfo;
+typedef struct RhizoParticleEmitterInfo { uint32_t struct_size,version,capacity,shape; float emission_rate,lifetime_min,lifetime_max,speed_min,speed_max,size_start,size_end; float color_start[4],color_end[4],gravity[3],force[3],direction[3],extents[3]; float cone_angle,drag,restitution; uint8_t collision_enabled,enabled,reserved[2]; uint32_t seed; } RhizoParticleEmitterInfo;
 typedef struct RhizoParticle { uint32_t entity_id; float position[3],velocity[3],age,lifetime,size,color[4]; } RhizoParticle;
 typedef struct RhizoAudioStats { uint32_t struct_size,clip_count,active_voice_count; float master_volume; } RhizoAudioStats;
 enum { RHIZO_TOUCH_DOWN=0u,RHIZO_TOUCH_MOVE=1u,RHIZO_TOUCH_UP=2u,RHIZO_TOUCH_CANCEL=3u };
