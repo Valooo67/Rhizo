@@ -22,7 +22,7 @@ echo "===== CHECKED OUT REVISION ====="
 git rev-parse HEAD
 git status --short
 echo "Stage 4 graphics source revision: $(git rev-parse HEAD)"
-echo "HDR composite now samples depth for SSAO and depth-of-field; bloom enabled"
+echo "HDR composite uses depth reconstruction for SSAO, SSR, SSGI and DoF; bloom and sorted alpha-blended transparent materials enabled"
 echo "Final snapshot and serialization guards included"
 nproc
 free -h
@@ -72,4 +72,4 @@ echo "===== BUILD OUTPUT ====="
 ls -lh build-android/librhizo.so
 file build-android/librhizo.so
 sha256sum build-android/librhizo.so
-echo "===== RHIZO STAGE 4 HDR BLOOM + SSAO + DOF + ARM64 ABI: SUCCESS ====="
+echo "===== RHIZO STAGE 4 HDR BLOOM + SSAO + SSR + SSGI + DOF + TRANSPARENCY + ARM64 BUILD: SUCCESS ====="
