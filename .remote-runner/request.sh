@@ -75,3 +75,5 @@ sha256sum build-android/librhizo.so
 echo "===== RHIZO STAGE 4 HDR POST FX + TAA + MOTION BLUR + TRANSPARENCY + PBR/IBL + PROJECTED DECALS + ARM64 BUILD: SUCCESS ====="
 
 # Stage 4 revision includes depth sampler, persistent projected decals and temporal history.
+
+# Post-effect bitmask and optimized shader revision verification.
