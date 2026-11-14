@@ -74,6 +74,11 @@ class Viewport final {
   std::vector<VkImage> hdr_images_;
   std::vector<VkDeviceMemory> hdr_memories_;
   std::vector<VkImageView> hdr_views_;
+  VkImage history_color_image_=VK_NULL_HANDLE,history_depth_image_=VK_NULL_HANDLE;
+  VkDeviceMemory history_color_memory_=VK_NULL_HANDLE,history_depth_memory_=VK_NULL_HANDLE;
+  VkImageView history_color_view_=VK_NULL_HANDLE,history_depth_view_=VK_NULL_HANDLE;
+  bool history_valid_=false; bool history_layout_initialized_=false,previous_view_projection_valid_=false;
+  Mat4 previous_view_projection_=Mat4::identity();
   VkImage depth_image_=VK_NULL_HANDLE;
   VkDeviceMemory depth_memory_=VK_NULL_HANDLE;
   VkImageView depth_view_=VK_NULL_HANDLE;
@@ -82,13 +87,13 @@ class Viewport final {
   VkDescriptorSetLayout composite_set_layout_=VK_NULL_HANDLE;
   VkDescriptorPool composite_descriptor_pool_=VK_NULL_HANDLE;
   std::vector<VkDescriptorSet> composite_descriptor_sets_;
-  VkSampler hdr_sampler_=VK_NULL_HANDLE;
-  VkPipeline composite_pipeline_=VK_NULL_HANDLE,triangle_pipeline_=VK_NULL_HANDLE,triangle_no_cull_pipeline_=VK_NULL_HANDLE,triangle_instanced_pipeline_=VK_NULL_HANDLE,triangle_instanced_no_cull_pipeline_=VK_NULL_HANDLE,line_pipeline_=VK_NULL_HANDLE,shadow_pipeline_=VK_NULL_HANDLE,skybox_pipeline_=VK_NULL_HANDLE;
+  VkSampler hdr_sampler_=VK_NULL_HANDLE,depth_sampler_=VK_NULL_HANDLE;
+  VkPipeline composite_pipeline_=VK_NULL_HANDLE,triangle_pipeline_=VK_NULL_HANDLE,triangle_no_cull_pipeline_=VK_NULL_HANDLE,triangle_transparent_pipeline_=VK_NULL_HANDLE,triangle_transparent_no_cull_pipeline_=VK_NULL_HANDLE,triangle_instanced_pipeline_=VK_NULL_HANDLE,triangle_instanced_no_cull_pipeline_=VK_NULL_HANDLE,line_pipeline_=VK_NULL_HANDLE,shadow_pipeline_=VK_NULL_HANDLE,skybox_pipeline_=VK_NULL_HANDLE;
   VkPipelineLayout shadow_pipeline_layout_=VK_NULL_HANDLE;
   VkDescriptorSetLayout scene_set_layout_=VK_NULL_HANDLE;
   VkDescriptorPool scene_descriptor_pool_=VK_NULL_HANDLE;
   VkDescriptorSet scene_descriptor_set_=VK_NULL_HANDLE,probe_scene_descriptor_set_=VK_NULL_HANDLE;
-  std::unique_ptr<GpuBuffer> scene_uniform_,probe_scene_uniform_;
+  std::unique_ptr<GpuBuffer> scene_uniform_,probe_scene_uniform_,composite_temporal_buffer_;
   std::array<ShadowMap,10> shadow_maps_;
   uint64_t shadow_target_signature_=0;
   bool shadow_cache_valid_=false;
@@ -110,7 +115,7 @@ class Viewport final {
   VkFence fence_=VK_NULL_HANDLE;
   std::vector<MeshGpuCache> mesh_cache_;
   std::unique_ptr<GpuBuffer> grid_buffer_,gizmo_buffer_,frame_plane_vertices_,frame_plane_indices_;
-  RhizoRenderSettings settings_{sizeof(RhizoRenderSettings),RHIZO_SHADOWS_MAPS,2048,0.0015f,0.01f,1.0f,1.0f,1.0f,1,1,1,1,{0,0,0,0}};
+  RhizoRenderSettings settings_{sizeof(RhizoRenderSettings),RHIZO_SHADOWS_MAPS,2048,0.0015f,0.01f,1.0f,1.0f,1.0f,1,1,1,1,RHIZO_POST_EFFECT_ALL};
   std::array<float,4> clear_color_{{0.055f,0.065f,0.085f,1.0f}};
 };
 }

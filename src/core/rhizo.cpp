@@ -43,7 +43,7 @@ struct RhizoContext {
   std::unordered_map<uint32_t,rhizo::Vec3> camera_shake_origins;
   uint32_t selected_entity=0,gizmo_mode=RHIZO_GIZMO_TRANSLATE;
   std::unique_ptr<rhizo::ShadowMap> shadow_map;
-  RhizoRenderSettings render_settings{sizeof(RhizoRenderSettings),RHIZO_SHADOWS_MAPS,2048,0.0015f,0.01f,1.0f,1.0f,1.0f,1,1,1,1,{0,0,0,0}};
+  RhizoRenderSettings render_settings{sizeof(RhizoRenderSettings),RHIZO_SHADOWS_MAPS,2048,0.0015f,0.01f,1.0f,1.0f,1.0f,1,1,1,1,RHIZO_POST_EFFECT_ALL};
   std::vector<uint8_t> opengl_frame;
   RhizoOpenGLFrameInfo opengl_frame_info{sizeof(RhizoOpenGLFrameInfo),0,0,0,0,0,RHIZO_FRAME_RGBA8,0};
   std::unique_ptr<rhizo::GpuBuffer> opengl_frame_gpu;
@@ -267,7 +267,7 @@ void rhizo_destroy(RhizoContext* context) {
 
 
 RhizoResult rhizo_render_settings_set(RhizoContext*c,const RhizoRenderSettings*in){
- if(!c||!in||in->struct_size<sizeof(RhizoRenderSettings)||in->shadow_mode>RHIZO_SHADOWS_MAPS||
+ if(!c||!in||in->struct_size<sizeof(RhizoRenderSettings)||(in->post_effects&~static_cast<uint32_t>(RHIZO_POST_EFFECT_ALL))!=0u||in->shadow_mode>RHIZO_SHADOWS_MAPS||
  (in->shadow_resolution!=512&&in->shadow_resolution!=1024&&in->shadow_resolution!=2048&&in->shadow_resolution!=4096&&in->shadow_resolution!=8192)||
  !std::isfinite(in->shadow_bias)||!std::isfinite(in->shadow_normal_bias)||!std::isfinite(in->exposure)||!std::isfinite(in->environment_intensity)||!std::isfinite(in->render_scale)||
  in->shadow_bias<0||in->shadow_normal_bias<0||in->exposure<0||in->environment_intensity<0||in->render_scale<0.25f||in->render_scale>2.0f)return RHIZO_ERROR_INVALID_ARGUMENT;
@@ -483,6 +483,17 @@ RhizoResult rhizo_scene_get_camera(const RhizoContext*c,uint32_t id,RhizoCameraI
 RhizoResult rhizo_scene_set_light(RhizoContext*c,uint32_t id,const RhizoLightInfo*in){
   if(!c||!in||in->struct_size<sizeof(RhizoLightInfo)||in->type>2||!std::isfinite(in->intensity)||!std::isfinite(in->range)||!std::isfinite(in->inner_cone)||!std::isfinite(in->outer_cone)||in->intensity<0||in->range<=0||in->inner_cone<0||in->outer_cone<=in->inner_cone||in->outer_cone>1.5707964f)return RHIZO_ERROR_INVALID_ARGUMENT;
   auto*n=c->scene.get(id);if(!n)return RHIZO_ERROR_INVALID_ARGUMENT;n->light.type=static_cast<rhizo::LightType>(in->type);n->light.color={in->color[0],in->color[1],in->color[2]};n->light.intensity=in->intensity;n->light.range=in->range;n->light.inner_cone=in->inner_cone;n->light.outer_cone=in->outer_cone;n->light.casts_shadows=in->casts_shadows!=0;n->has_light=true;return RHIZO_SUCCESS;
+}
+RhizoResult rhizo_scene_set_decal(RhizoContext*c,uint32_t id,const RhizoDecalInfo*in){
+ if(!c||!in||in->struct_size<sizeof(RhizoDecalInfo)||!std::isfinite(in->opacity)||!std::isfinite(in->angle_fade)||in->opacity<0.0f||in->opacity>1.0f||in->angle_fade<0.0f||in->angle_fade>=1.0f)return RHIZO_ERROR_INVALID_ARGUMENT;
+ for(float value:in->color)if(!std::isfinite(value)||value<0.0f||value>1.0f)return RHIZO_ERROR_INVALID_ARGUMENT;
+ if(!c->scene.get(id))return RHIZO_ERROR_INVALID_ARGUMENT;
+ rhizo::DecalComponent decal;decal.color={in->color[0],in->color[1],in->color[2],in->color[3]};decal.opacity=in->opacity;decal.angle_fade=in->angle_fade;
+ auto*custom=c->scene.components.get<rhizo::CustomComponentSet>(id);if(!custom)custom=&c->scene.components.emplace<rhizo::CustomComponentSet>(id);
+ auto&bytes=custom->values[rhizo::kDecalComponentType];bytes.resize(sizeof(decal));std::memcpy(bytes.data(),&decal,sizeof(decal));return RHIZO_SUCCESS;
+}
+RhizoResult rhizo_scene_remove_decal(RhizoContext*c,uint32_t id){
+ if(!c||!c->scene.get(id))return RHIZO_ERROR_INVALID_ARGUMENT;auto*custom=c->scene.components.get<rhizo::CustomComponentSet>(id);if(!custom||custom->values.erase(rhizo::kDecalComponentType)==0)return RHIZO_ERROR_INVALID_ARGUMENT;if(custom->values.empty())c->scene.components.remove<rhizo::CustomComponentSet>(id);return RHIZO_SUCCESS;
 }
 RhizoResult rhizo_scene_get_light(const RhizoContext*c,uint32_t id,RhizoLightInfo*out){
   if(!c||!out||out->struct_size<sizeof(RhizoLightInfo))return RHIZO_ERROR_INVALID_ARGUMENT;const auto*n=c->scene.get(id);if(!n||!n->has_light)return RHIZO_ERROR_INVALID_ARGUMENT;

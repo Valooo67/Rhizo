@@ -67,13 +67,19 @@ typedef enum RhizoAnimatedProperty {
 } RhizoAnimatedProperty;
 typedef struct RhizoCameraInfo { uint32_t struct_size; float vertical_fov,near_plane,far_plane,orthographic_size; uint8_t orthographic,reserved[3]; } RhizoCameraInfo;
 typedef struct RhizoLightInfo { uint32_t struct_size,type; float color[3],intensity,range,inner_cone,outer_cone; uint8_t casts_shadows,reserved[3]; } RhizoLightInfo;
+typedef struct RhizoDecalInfo { uint32_t struct_size; float color[4],opacity,angle_fade; } RhizoDecalInfo;
 typedef struct RhizoShadowMapInfo { uint32_t struct_size,width,height,format; } RhizoShadowMapInfo;
 typedef struct RhizoEditorVertex { float position[3],color[4]; } RhizoEditorVertex;
 typedef enum RhizoShadowMode { RHIZO_SHADOWS_DISABLED=0, RHIZO_SHADOWS_MAPS=1 } RhizoShadowMode;
+typedef enum RhizoPostEffectFlags {
+ RHIZO_POST_BLOOM=1u<<0,RHIZO_POST_SSAO=1u<<1,RHIZO_POST_SSR=1u<<2,RHIZO_POST_SSGI=1u<<3,
+ RHIZO_POST_DOF=1u<<4,RHIZO_POST_TAA=1u<<5,RHIZO_POST_MOTION_BLUR=1u<<6,RHIZO_POST_DECALS=1u<<7,
+ RHIZO_POST_EFFECT_ALL=(1u<<8)-1u
+} RhizoPostEffectFlags;
 typedef struct RhizoRenderSettings {
  uint32_t struct_size,shadow_mode,shadow_resolution;
  float shadow_bias,shadow_normal_bias,exposure,environment_intensity,render_scale;
- uint8_t enable_pbr,enable_textures,enable_vsync,enable_backface_culling,reserved[4];
+ uint8_t enable_pbr,enable_textures,enable_vsync,enable_backface_culling; uint32_t post_effects;
 } RhizoRenderSettings;
 typedef enum RhizoGizmoMode { RHIZO_GIZMO_TRANSLATE=0, RHIZO_GIZMO_ROTATE=1, RHIZO_GIZMO_SCALE=2 } RhizoGizmoMode;
 typedef struct RhizoOpenGLFrameInfo {
@@ -170,6 +176,8 @@ RHIZO_API RhizoResult rhizo_scene_set_camera(RhizoContext*,uint32_t,const RhizoC
 RHIZO_API RhizoResult rhizo_scene_get_camera(const RhizoContext*,uint32_t,RhizoCameraInfo*);
 RHIZO_API RhizoResult rhizo_scene_set_light(RhizoContext*,uint32_t,const RhizoLightInfo*);
 RHIZO_API RhizoResult rhizo_scene_get_light(const RhizoContext*,uint32_t,RhizoLightInfo*);
+RHIZO_API RhizoResult rhizo_scene_set_decal(RhizoContext*,uint32_t,const RhizoDecalInfo*);
+RHIZO_API RhizoResult rhizo_scene_remove_decal(RhizoContext*,uint32_t);
 RHIZO_API RhizoResult rhizo_shadow_map_create(RhizoContext*,uint32_t,uint32_t,RhizoShadowMapInfo*);
 RHIZO_API void rhizo_shadow_map_destroy(RhizoContext*);
 RHIZO_API uint32_t rhizo_editor_grid_vertex_count(float,uint32_t);
