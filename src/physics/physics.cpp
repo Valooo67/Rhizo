@@ -22,10 +22,10 @@ struct PhysicsWorld::Impl {
  std::unique_ptr<btSequentialImpulseConstraintSolver> solver=std::make_unique<btSequentialImpulseConstraintSolver>();
  std::unique_ptr<btDiscreteDynamicsWorld> world=std::make_unique<btDiscreteDynamicsWorld>(dispatcher.get(),broad.get(),solver.get(),config.get());
  std::unordered_map<EntityId,Body> bodies;
- std::unordered_map<EntityId,std::unique_ptr<btTypedConstraint>> joints;
+ std::unordered_multimap<EntityId,std::unique_ptr<btTypedConstraint>> joints;
  std::unordered_map<EntityId,RhizoPhysicsAnimationInfo> animation;
  Impl(){world->setGravity({0,-9.81f,0});world->getSolverInfo().m_numIterations=10;}
- void dropJoint(EntityId id){auto i=joints.find(id);if(i!=joints.end()){world->removeConstraint(i->second.get());joints.erase(i);}}
+ void dropJoint(EntityId id){auto range=joints.equal_range(id);for(auto i=range.first;i!=range.second;){world->removeConstraint(i->second.get());i=joints.erase(i);}}
  void dropBody(EntityId id){for(auto i=joints.begin();i!=joints.end();){auto a=i->second->getRigidBodyA().getUserIndex(),b=i->second->getRigidBodyB().getUserIndex();if(a==static_cast<int>(id)||b==static_cast<int>(id)){world->removeConstraint(i->second.get());i=joints.erase(i);}else ++i;}auto i=bodies.find(id);if(i!=bodies.end()){world->removeRigidBody(i->second.rigid.get());bodies.erase(i);}}
 };
 PhysicsWorld::PhysicsWorld():impl_(std::make_unique<Impl>()){}
@@ -43,11 +43,11 @@ bool PhysicsWorld::create_body(Scene& s,EntityId id,const RhizoRigidBodyInfo& d,
 bool PhysicsWorld::remove_body(Scene& s,EntityId id){impl_->dropBody(id);if(auto* c=s.components.get<CustomComponentSet>(id))c->values.erase(kBody);return true;}
 bool PhysicsWorld::create_joint(Scene& s,EntityId id,const RhizoPhysicsJointInfo& d,std::string& error){
  if(d.struct_size<sizeof(d)||d.version!=1||d.joint_type>RHIZO_JOINT_DISTANCE||id==d.connected_entity||!impl_->bodies.contains(id)||!impl_->bodies.contains(d.connected_entity)||!valid3(d.pivot_a)||!valid3(d.pivot_b)||!valid3(d.axis_a)||!valid3(d.axis_b)||!std::isfinite(d.lower_limit)||!std::isfinite(d.upper_limit)||d.lower_limit>d.upper_limit||!std::isfinite(d.stiffness)||d.stiffness<0||!std::isfinite(d.damping)||d.damping<0){error="Invalid joint descriptor or missing rigid body";return false;}
- impl_->dropJoint(id);auto& a=*impl_->bodies.at(id).rigid;auto& b=*impl_->bodies.at(d.connected_entity).rigid;btVector3 pa=v3(d.pivot_a),pb=v3(d.pivot_b),aa=v3(d.axis_a).normalized(),ab=v3(d.axis_b).normalized();std::unique_ptr<btTypedConstraint> j;
+ auto& a=*impl_->bodies.at(id).rigid;auto& b=*impl_->bodies.at(d.connected_entity).rigid;btVector3 pa=v3(d.pivot_a),pb=v3(d.pivot_b),aa=v3(d.axis_a).normalized(),ab=v3(d.axis_b).normalized();std::unique_ptr<btTypedConstraint> j;
  if(d.joint_type==RHIZO_JOINT_FIXED){btTransform fa,fb;fa.setIdentity();fb.setIdentity();fa.setOrigin(pa);fb.setOrigin(pb);j=std::make_unique<btFixedConstraint>(a,b,fa,fb);}
  else if(d.joint_type==RHIZO_JOINT_HINGE)j=std::make_unique<btHingeConstraint>(a,b,pa,pb,aa,ab,true);
  else{auto x=std::make_unique<btGeneric6DofSpring2Constraint>(a,b,btTransform(btQuaternion::getIdentity(),pa),btTransform(btQuaternion::getIdentity(),pb));x->setLinearLowerLimit({d.lower_limit,0,0});x->setLinearUpperLimit({d.upper_limit,0,0});x->setAngularLowerLimit({0,0,0});x->setAngularUpperLimit({0,0,0});if(d.joint_type==RHIZO_JOINT_SPRING)for(int k=0;k<3;k++){x->enableSpring(k,true);x->setStiffness(k,d.stiffness);x->setDamping(k,d.damping);}j=std::move(x);}
- impl_->world->addConstraint(j.get(),d.disable_collision!=0);impl_->joints.emplace(id,std::move(j));auto& bytes=s.components.emplace<CustomComponentSet>(id).values[kJoint];bytes.resize(sizeof(d));std::memcpy(bytes.data(),&d,sizeof(d));return true;
+ impl_->world->addConstraint(j.get(),d.disable_collision!=0);impl_->joints.emplace(id,std::move(j));auto& bytes=s.components.emplace<CustomComponentSet>(id).values[kJoint];if(bytes.size()%sizeof(d)!=0)bytes.clear();size_t offset=bytes.size();bytes.resize(offset+sizeof(d));std::memcpy(bytes.data()+offset,&d,sizeof(d));return true;
 }
 bool PhysicsWorld::remove_joint(Scene& s,EntityId id){impl_->dropJoint(id);if(auto* c=s.components.get<CustomComponentSet>(id))c->values.erase(kJoint);return true;}
 bool PhysicsWorld::set_animation_mode(Scene& s,EntityId id,const RhizoPhysicsAnimationInfo& d){
@@ -78,7 +78,10 @@ bool PhysicsWorld::rebuild(Scene& s,std::string& error){
  }
  for(const auto& node:s.nodes()){
   const auto* set=s.components.get<CustomComponentSet>(node.id);if(!set)continue;
-  auto joint=set->values.find(kJoint);if(joint!=set->values.end()&&joint->second.size()==sizeof(RhizoPhysicsJointInfo)){RhizoPhysicsJointInfo d{};std::memcpy(&d,joint->second.data(),sizeof(d));if(!create_joint(s,node.id,d,error))return false;}
+  auto joint=set->values.find(kJoint);if(joint==set->values.end())continue;
+  if(joint->second.size()%sizeof(RhizoPhysicsJointInfo)!=0){error="Corrupt serialized physics-joint data";return false;}
+  const auto descriptors=joint->second;
+  for(size_t offset=0;offset<descriptors.size();offset+=sizeof(RhizoPhysicsJointInfo)){RhizoPhysicsJointInfo d{};std::memcpy(&d,descriptors.data()+offset,sizeof(d));if(!create_joint(s,node.id,d,error))return false;}
  }
  return true;
 }
