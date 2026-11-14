@@ -21,7 +21,7 @@ echo
 echo "===== CHECKED OUT REVISION ====="
 git rev-parse HEAD
 git status --short
-echo "Stage 5 physics source revision: $(git rev-parse HEAD)"
+echo "Stage 6 systems source revision: $(git rev-parse HEAD)"
 echo "Bullet Physics: static/dynamic/kinematic rigid bodies, box/sphere/capsule/mesh colliders, fixed-step simulation, multiple joints per body, raycasts, material response and animation drive modes"
 echo "HDR composite includes depth-reconstructed SSAO, SSR, SSGI, DoF, reprojection TAA and camera motion blur; temporal color/depth history; bloom; sorted alpha-blended materials"
 echo "Scene/prefab serialization remaps joint entity IDs; multiple-constraint persistence and link-remap regression tests included"
