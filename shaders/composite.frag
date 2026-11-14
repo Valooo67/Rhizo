@@ -3,7 +3,7 @@ layout(set=0,binding=0) uniform sampler2D hdrColor;
 layout(set=0,binding=1) uniform sampler2D sceneDepth;
 layout(set=0,binding=2) uniform sampler2D historyColor;
 layout(set=0,binding=3) uniform sampler2D historyDepth;
-layout(std140,set=0,binding=4) uniform TemporalSettings { mat4 previousViewProjection; float historyValid; } temporal;
+layout(std140,set=0,binding=4) uniform TemporalSettings { mat4 previousViewProjection; uint effectFlags; } temporal;
 layout(push_constant) uniform CompositePush {
     mat4 viewProjection;
     mat4 inverseViewProjection;
@@ -11,6 +11,7 @@ layout(push_constant) uniform CompositePush {
 layout(location=0) in vec2 uv;
 layout(location=0) out vec4 outColor;
 
+bool effectEnabled(uint flag) { return (temporal.effectFlags & flag) != 0u; }
 vec3 aces(vec3 x) {
     return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0);
 }
@@ -131,45 +132,46 @@ void main() {
         vec3 normal = normalize(cross(rightPosition-worldPosition, upPosition-worldPosition));
         if (!gl_FrontFacing) normal = -normal;
         vec3 cameraRay = normalize(worldPosition - reconstructWorld(uv, 0.0));
-        float ao = screenSpaceAO(depth, texel);
-        scene *= ao;
-        scene += screenSpaceGI(worldPosition, normal, depth, texel) * 0.12;
-        scene += screenSpaceReflection(worldPosition, normal, cameraRay, 0.35);
-        scene = depthOfField(scene, depth, texel);
+        if (effectEnabled(2u)) scene *= screenSpaceAO(depth, texel);
+        if (effectEnabled(8u)) scene += screenSpaceGI(worldPosition, normal, depth, texel) * 0.12;
+        if (effectEnabled(4u)) scene += screenSpaceReflection(worldPosition, normal, cameraRay, 0.35);
+        if (effectEnabled(16u)) scene = depthOfField(scene, depth, texel);
     }
-    if (temporal.historyValid > 0.5 && depth < 0.99999) {
-        vec4 previousClip = temporal.previousViewProjection * vec4(worldPosition, 1.0);
-        vec3 previousNdc = previousClip.xyz / max(abs(previousClip.w), 0.000001) * sign(previousClip.w);
-        vec2 previousUv = previousNdc.xy * 0.5 + 0.5;
-        float previousDepth = previousNdc.z;
-        vec2 velocity = uv - previousUv;
-        float velocityLength = length(velocity);
-        if (velocityLength > 0.0005 && velocityLength < 0.08) {
-            vec3 motionBlur = scene * 0.2;
-            for (int sampleIndex=1; sampleIndex<=4; ++sampleIndex) {
-                float t = float(sampleIndex) / 4.0;
-                motionBlur += texture(hdrColor, uv - velocity*t).rgb * 0.1;
-                motionBlur += texture(hdrColor, uv + velocity*t).rgb * 0.1;
-            }
-            scene = mix(scene, motionBlur, clamp(velocityLength * 24.0, 0.0, 0.42));
-        }
-        if (all(greaterThan(previousUv, vec2(0.001))) && all(lessThan(previousUv, vec2(0.999)))) {
-            float oldDepth = texture(historyDepth, previousUv).r;
-            float depthTolerance = 0.0015 + abs(previousDepth) * 0.004;
-            if (abs(oldDepth - previousDepth) < depthTolerance) {
-                vec3 neighborhoodMin = scene;
-                vec3 neighborhoodMax = scene;
-                for (int y=-1; y<=1; ++y) for (int x=-1; x<=1; ++x) {
-                    vec3 neighbor = texture(hdrColor, uv + vec2(x,y)*texel).rgb;
-                    neighborhoodMin = min(neighborhoodMin, neighbor);
-                    neighborhoodMax = max(neighborhoodMax, neighbor);
+    if (effectEnabled(32u) || effectEnabled(64u)) {
+        if ((temporal.effectFlags & 0x80000000u) != 0u && depth < 0.99999) {
+            vec4 previousClip = temporal.previousViewProjection * vec4(worldPosition, 1.0);
+            vec3 previousNdc = previousClip.xyz / max(abs(previousClip.w), 0.000001) * sign(previousClip.w);
+            vec2 previousUv = previousNdc.xy * 0.5 + 0.5;
+            float previousDepth = previousNdc.z;
+            vec2 velocity = uv - previousUv;
+            float velocityLength = length(velocity);
+            if (effectEnabled(64u) && velocityLength > 0.0005 && velocityLength < 0.08) {
+                vec3 motionBlur = scene * 0.2;
+                for (int sampleIndex=1; sampleIndex<=4; ++sampleIndex) {
+                    float t = float(sampleIndex) / 4.0;
+                    motionBlur += texture(hdrColor, uv - velocity*t).rgb * 0.1;
+                    motionBlur += texture(hdrColor, uv + velocity*t).rgb * 0.1;
                 }
-                vec3 history = clamp(texture(historyColor, previousUv).rgb, neighborhoodMin, neighborhoodMax);
-                scene = mix(scene, history, 0.88);
+                scene = mix(scene, motionBlur, clamp(velocityLength * 24.0, 0.0, 0.42));
+            }
+            if (effectEnabled(32u) && all(greaterThan(previousUv, vec2(0.001))) && all(lessThan(previousUv, vec2(0.999)))) {
+                float oldDepth = texture(historyDepth, previousUv).r;
+                float depthTolerance = 0.0015 + abs(previousDepth) * 0.004;
+                if (abs(oldDepth - previousDepth) < depthTolerance) {
+                    vec3 neighborhoodMin = scene;
+                    vec3 neighborhoodMax = scene;
+                    for (int y=-1; y<=1; ++y) for (int x=-1; x<=1; ++x) {
+                        vec3 neighbor = texture(hdrColor, uv + vec2(x,y)*texel).rgb;
+                        neighborhoodMin = min(neighborhoodMin, neighbor);
+                        neighborhoodMax = max(neighborhoodMax, neighbor);
+                    }
+                    vec3 history = clamp(texture(historyColor, previousUv).rgb, neighborhoodMin, neighborhoodMax);
+                    scene = mix(scene, history, 0.88);
+                }
             }
         }
     }
-    scene += bloomContribution(texel);
+    if (effectEnabled(1u)) scene += bloomContribution(texel);
     vec3 mapped = aces(scene);
     mapped = pow(max(mapped, vec3(0.0)), vec3(1.0/2.2));
     outColor = vec4(mapped, hdr.a);
