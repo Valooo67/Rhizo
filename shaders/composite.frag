@@ -145,7 +145,6 @@ void main() {
         vec2 velocity = uv - previousUv;
         float velocityLength = length(velocity);
         if (velocityLength > 0.0005 && velocityLength < 0.08) {
-            vec2 blurStep = velocity / 6.0;
             vec3 motionBlur = scene * 0.2;
             for (int sampleIndex=1; sampleIndex<=4; ++sampleIndex) {
                 float t = float(sampleIndex) / 4.0;
