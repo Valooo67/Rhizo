@@ -1,6 +1,9 @@
 #version 450
 layout(set=0,binding=0) uniform sampler2D hdrColor;
 layout(set=0,binding=1) uniform sampler2D sceneDepth;
+layout(set=0,binding=2) uniform sampler2D historyColor;
+layout(set=0,binding=3) uniform sampler2D historyDepth;
+layout(std140,set=0,binding=4) uniform TemporalSettings { float historyValid; } temporal;
 layout(push_constant) uniform CompositePush {
     mat4 viewProjection;
     mat4 inverseViewProjection;
@@ -133,6 +136,21 @@ void main() {
         scene += screenSpaceGI(worldPosition, normal, depth, texel) * 0.12;
         scene += screenSpaceReflection(worldPosition, normal, cameraRay, 0.35);
         scene = depthOfField(scene, depth, texel);
+    }
+    if (temporal.historyValid > 0.5 && depth < 0.99999) {
+        float oldDepth = texture(historyDepth, uv).r;
+        float depthTolerance = 0.0015 + depth * 0.004;
+        if (abs(oldDepth - depth) < depthTolerance) {
+            vec3 neighborhoodMin = scene;
+            vec3 neighborhoodMax = scene;
+            for (int y=-1; y<=1; ++y) for (int x=-1; x<=1; ++x) {
+                vec3 neighbor = texture(hdrColor, uv + vec2(x,y)*texel).rgb;
+                neighborhoodMin = min(neighborhoodMin, neighbor);
+                neighborhoodMax = max(neighborhoodMax, neighbor);
+            }
+            vec3 history = clamp(texture(historyColor, uv).rgb, neighborhoodMin, neighborhoodMax);
+            scene = mix(scene, history, 0.88);
+        }
     }
     scene += bloomContribution(texel);
     vec3 mapped = aces(scene);
