@@ -79,3 +79,5 @@ echo "===== RHIZO STAGE 5 BULLET PHYSICS + COLLISION + JOINTS + RAYCAST + ANIMAT
 
 # Post-effect bitmask and optimized shader revision verification.
 # Stage 5 rerun after correcting Bullet FetchContent/link configuration.
+
+# Re-run after setting the CMake policy compatibility baseline for Bullet.
