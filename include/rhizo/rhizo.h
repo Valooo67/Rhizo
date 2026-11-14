@@ -15,6 +15,22 @@ extern "C" {
 #endif
 #define RHIZO_ABI_VERSION 1u
 typedef struct RhizoContext RhizoContext;
+typedef enum RhizoRigidBodyType { RHIZO_BODY_STATIC=0, RHIZO_BODY_DYNAMIC=1, RHIZO_BODY_KINEMATIC=2 } RhizoRigidBodyType;
+typedef enum RhizoCollisionShape { RHIZO_SHAPE_BOX=0, RHIZO_SHAPE_SPHERE=1, RHIZO_SHAPE_CAPSULE=2, RHIZO_SHAPE_MESH=3 } RhizoCollisionShape;
+typedef enum RhizoJointType { RHIZO_JOINT_FIXED=0, RHIZO_JOINT_HINGE=1, RHIZO_JOINT_SPRING=2, RHIZO_JOINT_DISTANCE=3 } RhizoJointType;
+typedef enum RhizoPhysicsAnimationMode { RHIZO_PHYSICS_DRIVES=0, RHIZO_PHYSICS_ANIMATION_DRIVES=1, RHIZO_PHYSICS_ANIMATION_BLEND=2 } RhizoPhysicsAnimationMode;
+typedef struct RhizoRigidBodyInfo {
+ uint32_t struct_size,version,body_type,shape_type;
+ float mass,density,friction,restitution,linear_damping,angular_damping;
+ float dimensions[3]; uint32_t mesh_index; uint16_t collision_group,collision_mask;
+} RhizoRigidBodyInfo;
+typedef struct RhizoPhysicsJointInfo {
+ uint32_t struct_size,version,joint_type,connected_entity;
+ float pivot_a[3],pivot_b[3],axis_a[3],axis_b[3];
+ float lower_limit,upper_limit,stiffness,damping; uint8_t disable_collision,reserved[3];
+} RhizoPhysicsJointInfo;
+typedef struct RhizoPhysicsAnimationInfo { uint32_t struct_size,mode; float blend; } RhizoPhysicsAnimationInfo;
+typedef struct RhizoRaycastHit { uint32_t entity_id; float fraction,point[3],normal[3]; } RhizoRaycastHit;
 typedef struct RhizoBuffer RhizoBuffer;
 typedef struct RhizoTexture RhizoTexture;
 typedef enum RhizoResult {
@@ -176,6 +192,17 @@ RHIZO_API RhizoResult rhizo_scene_set_camera(RhizoContext*,uint32_t,const RhizoC
 RHIZO_API RhizoResult rhizo_scene_get_camera(const RhizoContext*,uint32_t,RhizoCameraInfo*);
 RHIZO_API RhizoResult rhizo_scene_set_light(RhizoContext*,uint32_t,const RhizoLightInfo*);
 RHIZO_API RhizoResult rhizo_scene_get_light(const RhizoContext*,uint32_t,RhizoLightInfo*);
+RHIZO_API RhizoResult rhizo_physics_body_create(RhizoContext*,uint32_t,const RhizoRigidBodyInfo*);
+RHIZO_API RhizoResult rhizo_physics_body_remove(RhizoContext*,uint32_t);
+RHIZO_API RhizoResult rhizo_physics_body_set_velocity(RhizoContext*,uint32_t,const float[3],const float[3]);
+RHIZO_API RhizoResult rhizo_physics_body_apply_force(RhizoContext*,uint32_t,const float[3]);
+RHIZO_API RhizoResult rhizo_physics_body_apply_impulse(RhizoContext*,uint32_t,const float[3]);
+RHIZO_API RhizoResult rhizo_physics_joint_create(RhizoContext*,uint32_t,const RhizoPhysicsJointInfo*);
+RHIZO_API RhizoResult rhizo_physics_joint_remove(RhizoContext*,uint32_t);
+RHIZO_API RhizoResult rhizo_physics_set_animation_mode(RhizoContext*,uint32_t,const RhizoPhysicsAnimationInfo*);
+RHIZO_API RhizoResult rhizo_physics_step(RhizoContext*,double);
+RHIZO_API RhizoResult rhizo_physics_raycast(const RhizoContext*,const float[3],const float[3],RhizoRaycastHit*);
+RHIZO_API void rhizo_physics_clear(RhizoContext*);
 RHIZO_API RhizoResult rhizo_scene_set_decal(RhizoContext*,uint32_t,const RhizoDecalInfo*);
 RHIZO_API RhizoResult rhizo_scene_remove_decal(RhizoContext*,uint32_t);
 RHIZO_API RhizoResult rhizo_shadow_map_create(RhizoContext*,uint32_t,uint32_t,RhizoShadowMapInfo*);
