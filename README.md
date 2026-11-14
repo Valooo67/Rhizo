@@ -52,3 +52,12 @@ Assimp is fetched at configure time and built for the Android target. The Linux 
 ## Not yet complete
 
 The renderer currently provides the Vulkan viewport, PBR shading, depth-tested scene geometry, grid and gizmo visualization. The current shadow-map object allocates a sampled depth image, but a depth-only shadow render pass and shader-side shadow sampling are not yet connected; hardware ray tracing remains deferred. Material texture paths are imported and reported, but texture decoding, per-material GPU descriptors and sampling are still pending. OpenGL frames are uploaded to Vulkan images and exposed as handles; automatic compositing into scene materials is not yet wired. Device validation and end-to-end Flux Studio JNI/UI integration remain necessary. The animation API exposes entity transforms and generic parameter tracks.
+
+
+## Stage 5 — Physics
+
+RHIZO integrates Bullet Physics (zlib license) as its CPU-side simulation backend. The runtime exposes a C ABI for static, dynamic and kinematic rigid bodies; box, sphere, capsule and mesh colliders; per-body friction, restitution, density and damping; collision filtering; central forces and impulses; fixed, hinge, spring and distance constraints; ray queries; and physics/animation drive modes.
+
+Physics component descriptors are stored in the scene's custom-component payloads, so scene and prefab serialization retain body, joint and animation-binding configuration. After scene loading, RHIZO rebuilds the physics world from those persisted descriptors. Call `rhizo_physics_step` once per frame with elapsed seconds; the solver uses a bounded fixed substep and writes dynamic-body transforms back to the scene. Kinematic bodies follow scene/animation transforms. Dynamic mesh colliders use convex hulls; static mesh colliders use triangle meshes.
+
+The simulation runs on the CPU and is independent of Vulkan rendering. Physical-device timing and collision behavior still require runtime testing on target hardware.
