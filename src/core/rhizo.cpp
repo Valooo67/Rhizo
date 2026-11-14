@@ -607,7 +607,7 @@ RhizoResult rhizo_scene_save(RhizoContext*c,const char*path){
 }
 RhizoResult rhizo_scene_load(RhizoContext*c,const char*path){
  if(!c||!path||!*path)return RHIZO_ERROR_INVALID_ARGUMENT;rhizo::Scene loaded;std::string error;if(!rhizo::load_scene(loaded,path,error)){c->last_error=std::move(error);return RHIZO_ERROR_INTERNAL;}
- c->scene=std::move(loaded);c->animation=rhizo::Animation{};c->animation_player.bind(nullptr);c->animation_clips.clear();c->animation_clip_names.clear();c->next_animation_clip_id=1;c->active_animation_clip=0;c->animation_state_machine=rhizo::AnimationStateMachine{};c->camera_shake_origins.clear();c->selected_entity=0;c->last_error.clear();return RHIZO_SUCCESS;
+ c->scene=std::move(loaded);c->physics.clear();if(!c->physics.rebuild(c->scene,error)){c->last_error=std::move(error);return RHIZO_ERROR_INTERNAL;}c->animation=rhizo::Animation{};c->animation_player.bind(nullptr);c->animation_clips.clear();c->animation_clip_names.clear();c->next_animation_clip_id=1;c->active_animation_clip=0;c->animation_state_machine=rhizo::AnimationStateMachine{};c->camera_shake_origins.clear();c->selected_entity=0;c->last_error.clear();return RHIZO_SUCCESS;
 }
 RhizoResult rhizo_prefab_save(RhizoContext*c,uint32_t root,const char*path){
  if(!c||!path||!*path||!root)return RHIZO_ERROR_INVALID_ARGUMENT;std::string error;if(!rhizo::save_prefab(c->scene,root,path,error)){c->last_error=std::move(error);return RHIZO_ERROR_INTERNAL;}c->last_error.clear();return RHIZO_SUCCESS;
