@@ -1,8 +1,10 @@
 #include "rhizo/scene_io.hpp"
+#include "rhizo/rhizo.h"
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <fstream>
 #include <limits>
 #include <type_traits>
@@ -11,6 +13,17 @@
 
 namespace rhizo { namespace {
 constexpr uint32_t kVersion=4,kMaxNodes=1000000,kMaxMeshes=100000,kMaxVertices=10000000,kMaxString=1u<<20,kMaxComponents=4096,kMaxComponentBytes=1u<<20;
+constexpr uint32_t kPhysicsJointComponent=0x5048594au;
+bool remap_physics_joint_links(CustomComponentSet& components,const std::unordered_map<EntityId,EntityId>& mapping,std::string& error){
+ auto it=components.values.find(kPhysicsJointComponent);if(it==components.values.end())return true;
+ if(it->second.size()%sizeof(RhizoPhysicsJointInfo)!=0){error="Invalid serialized physics-joint component size";return false;}
+ for(size_t offset=0;offset<it->second.size();offset+=sizeof(RhizoPhysicsJointInfo)){
+  RhizoPhysicsJointInfo joint{};std::memcpy(&joint,it->second.data()+offset,sizeof(joint));
+  auto mapped=mapping.find(joint.connected_entity);if(mapped==mapping.end()){error="Physics joint references an entity outside the serialized scene";return false;}
+  joint.connected_entity=mapped->second;std::memcpy(it->second.data()+offset,&joint,sizeof(joint));
+ }
+ return true;
+}
 struct Writer{
  std::ofstream f;explicit Writer(const std::string&p):f(p,std::ios::binary|std::ios::trunc){}
  template<class T>bool pod(T v){static_assert(std::is_arithmetic_v<T>);f.write(reinterpret_cast<const char*>(&v),sizeof(v));return bool(f);}
@@ -67,7 +80,7 @@ bool read_scene(Scene&out,const std::string&p,std::string&err){
  }
  std::unordered_map<EntityId,EntityId> map;for(auto&x:pending){if(x.old==kInvalidEntity||map.contains(x.old)){err="Scene contains a duplicate or invalid entity ID";return false;}EntityId id=tmp.create(x.node.name);if(!id){err="Unable to allocate scene entity";return false;}map.emplace(x.old,id);}
  for(auto&mesh:tmp.meshes)for(auto&bone:mesh.bones)if(bone.node){auto mapped=map.find(bone.node);if(mapped==map.end()){err="Skin bone references an entity outside the scene";return false;}bone.node=mapped->second;}
- for(auto&x:pending){const EntityId id=map[x.old];auto*n=tmp.get(id);n->local=x.node.local;n->visible=x.node.visible;n->has_camera=x.node.has_camera;n->camera=x.node.camera;n->has_light=x.node.has_light;n->light=x.node.light;n->mesh_indices=std::move(x.node.mesh_indices);n->morph_weights=std::move(x.node.morph_weights);if(!x.custom.values.empty())tmp.components.emplace<CustomComponentSet>(id,std::move(x.custom));if(x.parent){auto it=map.find(x.parent);if(it==map.end()||!tmp.set_parent(id,it->second)){err="Scene hierarchy contains an invalid parent or cycle";return false;}}}
+ for(auto&x:pending){const EntityId id=map[x.old];auto*n=tmp.get(id);n->local=x.node.local;n->visible=x.node.visible;n->has_camera=x.node.has_camera;n->camera=x.node.camera;n->has_light=x.node.has_light;n->light=x.node.light;n->mesh_indices=std::move(x.node.mesh_indices);n->morph_weights=std::move(x.node.morph_weights);if(!remap_physics_joint_links(x.custom,map,err))return false;if(!x.custom.values.empty())tmp.components.emplace<CustomComponentSet>(id,std::move(x.custom));if(x.parent){auto it=map.find(x.parent);if(it==map.end()||!tmp.set_parent(id,it->second)){err="Scene hierarchy contains an invalid parent or cycle";return false;}}}
  out=std::move(tmp);return true;
 }
 void collect(const Scene&s,EntityId id,std::vector<EntityId>&out){const auto*n=s.get(id);if(!n)return;out.push_back(id);for(EntityId c:n->children)collect(s,c,out);}
@@ -89,7 +102,7 @@ bool instantiate_prefab(Scene&s,const std::string&p,EntityId parent,EntityId&roo
  for(const auto&n:prefab.nodes()){
   auto*dst=merged.get(map[n.id]);if(!dst){e="Prefab entity mapping is invalid";return false;}
   dst->local=n.local;dst->visible=n.visible;dst->has_camera=n.has_camera;dst->camera=n.camera;dst->has_light=n.has_light;dst->light=n.light;dst->morph_weights=n.morph_weights;
-  if(const auto*custom=prefab.components.get<CustomComponentSet>(n.id))merged.components.emplace<CustomComponentSet>(dst->id,*custom);
+  if(const auto*custom=prefab.components.get<CustomComponentSet>(n.id)){CustomComponentSet remapped=*custom;if(!remap_physics_joint_links(remapped,map,e))return false;merged.components.emplace<CustomComponentSet>(dst->id,std::move(remapped));}
   for(uint32_t m:n.mesh_indices)dst->mesh_indices.push_back(meshBase+m);
   if(n.parent){auto it=map.find(n.parent);if(it==map.end()||!merged.set_parent(dst->id,it->second)){e="Prefab hierarchy is invalid";return false;}}
   else{if(!newRoot)newRoot=dst->id;if(parent&&!merged.set_parent(dst->id,parent)){e="Could not attach prefab root";return false;}}
