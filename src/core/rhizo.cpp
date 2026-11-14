@@ -43,7 +43,7 @@ struct RhizoContext {
   std::unordered_map<uint32_t,rhizo::Vec3> camera_shake_origins;
   uint32_t selected_entity=0,gizmo_mode=RHIZO_GIZMO_TRANSLATE;
   std::unique_ptr<rhizo::ShadowMap> shadow_map;
-  RhizoRenderSettings render_settings{sizeof(RhizoRenderSettings),RHIZO_SHADOWS_MAPS,2048,0.0015f,0.01f,1.0f,1.0f,1.0f,1,1,1,1,{0,0,0,0}};
+  RhizoRenderSettings render_settings{sizeof(RhizoRenderSettings),RHIZO_SHADOWS_MAPS,2048,0.0015f,0.01f,1.0f,1.0f,1.0f,1,1,1,1,RHIZO_POST_EFFECT_ALL};
   std::vector<uint8_t> opengl_frame;
   RhizoOpenGLFrameInfo opengl_frame_info{sizeof(RhizoOpenGLFrameInfo),0,0,0,0,0,RHIZO_FRAME_RGBA8,0};
   std::unique_ptr<rhizo::GpuBuffer> opengl_frame_gpu;
