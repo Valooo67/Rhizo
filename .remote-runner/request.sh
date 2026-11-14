@@ -78,3 +78,4 @@ echo "===== RHIZO STAGE 5 BULLET PHYSICS + COLLISION + JOINTS + RAYCAST + ANIMAT
 # Stage 4 revision includes depth sampler, persistent projected decals and temporal history.
 
 # Post-effect bitmask and optimized shader revision verification.
+# Stage 5 rerun after correcting Bullet FetchContent/link configuration.
