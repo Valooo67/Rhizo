@@ -77,7 +77,8 @@ class Viewport final {
   VkImage history_color_image_=VK_NULL_HANDLE,history_depth_image_=VK_NULL_HANDLE;
   VkDeviceMemory history_color_memory_=VK_NULL_HANDLE,history_depth_memory_=VK_NULL_HANDLE;
   VkImageView history_color_view_=VK_NULL_HANDLE,history_depth_view_=VK_NULL_HANDLE;
-  bool history_valid_=false; bool history_layout_initialized_=false;
+  bool history_valid_=false; bool history_layout_initialized_=false,previous_view_projection_valid_=false;
+  Mat4 previous_view_projection_=Mat4::identity();
   VkImage depth_image_=VK_NULL_HANDLE;
   VkDeviceMemory depth_memory_=VK_NULL_HANDLE;
   VkImageView depth_view_=VK_NULL_HANDLE;
