@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-echo "===== RHIZO ANIMATION STAGE 3 FINAL BUILD CANDIDATE ====="
-echo "===== RHIZO ANIMATION RUNTIME + TIMELINE RELEASE CANDIDATE ====="
+echo "===== RHIZO STAGE 4 GRAPHICS BUILD CANDIDATE ====="
+echo "===== RHIZO HDR POST-PROCESSING VALIDATION ====="
 echo "===== RHIZO REMOTE BUILD + COMPLETE C ABI VALIDATION ====="
 echo "UTC: $(date -u +%FT%TZ)"
 echo "Host: $(uname -a)"
@@ -21,8 +21,8 @@ echo
 echo "===== CHECKED OUT REVISION ====="
 git rev-parse HEAD
 git status --short
-echo "Stage 3 final source revision: $(git rev-parse HEAD)"
-echo "GPU skinning + morph palette declaration included"
+echo "Stage 4 graphics source revision: $(git rev-parse HEAD)"
+echo "HDR composite now samples depth for SSAO and depth-of-field; bloom enabled"
 echo "Final snapshot and serialization guards included"
 nproc
 free -h
@@ -72,4 +72,4 @@ echo "===== BUILD OUTPUT ====="
 ls -lh build-android/librhizo.so
 file build-android/librhizo.so
 sha256sum build-android/librhizo.so
-echo "===== RHIZO SKELETAL ANIMATION + GPU SKINNING + MORPH TARGETS + RETARGETING + TIMELINE ABI: SUCCESS ====="
+echo "===== RHIZO STAGE 4 HDR BLOOM + SSAO + DOF + ARM64 ABI: SUCCESS ====="
