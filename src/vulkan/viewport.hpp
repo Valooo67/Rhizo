@@ -115,7 +115,7 @@ class Viewport final {
   VkFence fence_=VK_NULL_HANDLE;
   std::vector<MeshGpuCache> mesh_cache_;
   std::unique_ptr<GpuBuffer> grid_buffer_,gizmo_buffer_,frame_plane_vertices_,frame_plane_indices_;
-  RhizoRenderSettings settings_{sizeof(RhizoRenderSettings),RHIZO_SHADOWS_MAPS,2048,0.0015f,0.01f,1.0f,1.0f,1.0f,1,1,1,1,{0,0,0,0}};
+  RhizoRenderSettings settings_{sizeof(RhizoRenderSettings),RHIZO_SHADOWS_MAPS,2048,0.0015f,0.01f,1.0f,1.0f,1.0f,1,1,1,1,RHIZO_POST_EFFECT_ALL};
   std::array<float,4> clear_color_{{0.055f,0.065f,0.085f,1.0f}};
 };
 }
