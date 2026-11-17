@@ -15,10 +15,10 @@ class Viewport final {
  public:
   ~Viewport();
   bool attach(VulkanContext&,ANativeWindow*,std::string&);
-  bool render(float,float,float,float,std::string&);
   bool render_scene(const Scene&,const Mat4&,uint32_t selected_entity,uint32_t gizmo_mode,std::string&,FrameTexture* opengl_frame=nullptr,uint64_t opengl_frame_index=0,const Vec3* camera_override=nullptr);
   void detach() noexcept;
   void set_render_settings(const RhizoRenderSettings& settings) noexcept { settings_ = settings; }
+  void set_clear_color(float r,float g,float b,float a) noexcept { clear_color_={r,g,b,a}; }
   uint32_t width()const{return extent_.width;}
   uint32_t height()const{return extent_.height;}
  private:
