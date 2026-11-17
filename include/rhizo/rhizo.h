@@ -94,6 +94,13 @@ RHIZO_API RhizoResult rhizo_render_settings_get(const RhizoContext*,RhizoRenderS
 RHIZO_API RhizoResult rhizo_opengl_submit_frame(RhizoContext*,const RhizoOpenGLFrameInfo*,const void*,uint64_t);
 RHIZO_API RhizoResult rhizo_opengl_get_latest_texture(const RhizoContext*,uint64_t*,uint64_t*,uint32_t*,uint32_t*);
 RHIZO_API RhizoResult rhizo_opengl_get_latest_frame(const RhizoContext*,RhizoOpenGLFrameInfo*,const void**,uint64_t*);
+typedef enum RhizoCameraTouchPhase { RHIZO_CAMERA_TOUCH_DOWN=0, RHIZO_CAMERA_TOUCH_MOVE=1, RHIZO_CAMERA_TOUCH_UP=2, RHIZO_CAMERA_TOUCH_CANCEL=3 } RhizoCameraTouchPhase;
+RHIZO_API RhizoResult rhizo_editor_camera_reset(RhizoContext*);
+RHIZO_API RhizoResult rhizo_editor_camera_orbit(RhizoContext*,float delta_x,float delta_y);
+RHIZO_API RhizoResult rhizo_editor_camera_pan(RhizoContext*,float delta_x,float delta_y);
+RHIZO_API RhizoResult rhizo_editor_camera_zoom(RhizoContext*,float delta);
+RHIZO_API RhizoResult rhizo_editor_camera_focus(RhizoContext*,uint32_t entity_id);
+RHIZO_API RhizoResult rhizo_editor_camera_touch(RhizoContext*,uint32_t phase,uint32_t pointer_id,float x,float y);
 RHIZO_API void rhizo_viewport_detach(RhizoContext*);
 RHIZO_API const char* rhizo_get_last_error(const RhizoContext*);
 RHIZO_API RhizoResult rhizo_buffer_create(RhizoContext*,const RhizoBufferCreateInfo*,RhizoBuffer**);
