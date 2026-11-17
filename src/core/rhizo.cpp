@@ -152,6 +152,20 @@ RhizoResult rhizo_viewport_render_scene_camera(RhizoContext*c,uint32_t id){
  if(n->camera.orthographic){const float h=n->camera.orthographic_size,w=h*aspect;projection.v[0]=1.0f/w;projection.v[5]=-1.0f/h;projection.v[10]=1.0f/(n->camera.near_plane-n->camera.far_plane);projection.v[14]=n->camera.near_plane/(n->camera.near_plane-n->camera.far_plane);projection.v[15]=1.0f;}else projection=rhizo::perspective(n->camera.vertical_fov,aspect,n->camera.near_plane,n->camera.far_plane);
  c->viewport.set_render_settings(c->render_settings);std::string error;if(!c->viewport.render_scene(c->scene,rhizo::multiply(projection,view),c->selected_entity,c->gizmo_mode,error,c->opengl_frame_texture.get(),c->opengl_frame_info.frame_index,&pos)){c->last_error=std::move(error);return RHIZO_ERROR_VULKAN;}return RHIZO_SUCCESS;
 }
+RhizoResult rhizo_editor_camera_get_view_projection(const RhizoContext*c,float out[16],float position[3]){
+ if(!c||!out||!position||!c->viewport.width()||!c->viewport.height())return RHIZO_ERROR_INVALID_ARGUMENT;
+ const float cp=std::cos(c->editor_camera_pitch);
+ const rhizo::Vec3 offset{std::sin(c->editor_camera_yaw)*cp*c->editor_camera_distance,
+  std::sin(c->editor_camera_pitch)*c->editor_camera_distance,
+  std::cos(c->editor_camera_yaw)*cp*c->editor_camera_distance};
+ const rhizo::Vec3 eye=c->editor_camera_target+offset;
+ const rhizo::Mat4 view=rhizo::look_at(eye,c->editor_camera_target,{0.0f,1.0f,0.0f});
+ const float aspect=static_cast<float>(c->viewport.width())/static_cast<float>(c->viewport.height());
+ const rhizo::Mat4 projection=rhizo::perspective(0.785398163f,aspect,0.01f,10000.0f);
+ const rhizo::Mat4 vp=rhizo::multiply(projection,view);
+ std::copy(vp.v.begin(),vp.v.end(),out);position[0]=eye.x;position[1]=eye.y;position[2]=eye.z;
+ return RHIZO_SUCCESS;
+}
 RhizoResult rhizo_editor_camera_reset(RhizoContext*c){
  if(!c)return RHIZO_ERROR_INVALID_ARGUMENT;
  c->editor_camera_target={0.0f,0.0f,0.0f};c->editor_camera_yaw=0.785398163f;
